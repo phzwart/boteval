@@ -1,9 +1,0 @@
-{
-  "huggingface": {
-    "repo_id": "phzwart/boteval-phenixbb"
-  },
-  "experiment": {
-    "default_model_name": "notebooklm",
-    "default_run_id": "experiment_2024_06_13"
-  }
-}
