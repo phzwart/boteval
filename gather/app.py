@@ -3,6 +3,7 @@ import json
 import datetime
 import uuid
 import io
+import os
 from huggingface_hub import HfApi, hf_hub_download
 
 # Load Hugging Face token and repo ID from Streamlit Secrets
@@ -29,10 +30,11 @@ st.title("LLM Response Collector")
 
 # Initialize session state for metadata
 if "metadata" not in st.session_state:
+    operator = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
     st.session_state.metadata = {
         "model_name": "GPT-4o",
         "run_id": f"experiment_{datetime.date.today().isoformat()}",
-        "operator": os.getenv("USER", "unknown")
+        "operator": operator
     }
 
 # Metadata input fields
