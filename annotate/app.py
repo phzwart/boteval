@@ -68,16 +68,24 @@ for q in questions_to_annotate:
     st.subheader(f"{qid}: {q['question']}")
 
     benchmark = st.text_area(
-        f"Proposed Answer ({qid})", 
+        f"Proposed Answer ({qid})",
         value=st.session_state.annotations.get(qid, {}).get("benchmark", ""),
         key=f"benchmark_{qid}"
     )
 
+    # SAFER RADIO INDEX HANDLING
+    options = [-1, 0, 1]
+    current_value = st.session_state.annotations.get(qid, {}).get("quality", 1)
+    try:
+        index = options.index(current_value)
+    except ValueError:
+        index = options.index(0)
+
     quality = st.radio(
         f"Question Quality ({qid})",
-        options=[-1, 0, 1],
+        options=options,
         format_func=lambda x: { -1: "Bad (-1)", 0: "Neutral (0)", 1: "Good (+1)" }[x],
-        index=st.session_state.annotations.get(qid, {}).get("quality", 1),
+        index=index,
         key=f"quality_{qid}"
     )
 
