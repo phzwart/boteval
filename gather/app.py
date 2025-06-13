@@ -1,49 +1,46 @@
 import streamlit as st
 import json
-import os
 import datetime
 import uuid
-from huggingface_hub import HfApi
+import io
+from huggingface_hub import HfApi, hf_hub_download
 
-# Load config.json
-CONFIG_FILE = "config.json"
-with open(CONFIG_FILE, "r") as f:
-    config = json.load(f)
-
-HF_REPO_ID = config["huggingface"]["repo_id"]
-DEFAULT_MODEL = config["experiment"]["default_model_name"]
-DEFAULT_RUN_ID = config["experiment"]["default_run_id"]
-
-# Load questions.json
-QUESTIONS_FILE = "questions.json"
-with open(QUESTIONS_FILE, "r") as f:
-    questions = json.load(f)
-
-# Load Hugging Face token from secrets
+# Load Hugging Face token and repo ID from Streamlit Secrets
 hf_token = st.secrets["hf"]["token"]
+HF_REPO_ID = st.secrets["hf"]["repo_id"]
+
+# Initialize Hugging Face API client
 hf_api = HfApi(token=hf_token)
 
-# Streamlit page config
-st.set_page_config(page_title="PhenixBB LLM Response Collector", layout="wide")
+# Download questions.json dynamically from Hugging Face Hub
+questions_file_path = hf_hub_download(
+    repo_id=HF_REPO_ID,
+    filename="questions.json",
+    repo_type="dataset",
+    token=hf_token
+)
+
+with open(questions_file_path, "r") as f:
+    questions = json.load(f)
+
+# Set Streamlit page config
+st.set_page_config(page_title="Boteval Response Collector", layout="wide")
 st.title("LLM Response Collector")
 
 # Initialize session state for metadata
 if "metadata" not in st.session_state:
     st.session_state.metadata = {
-        "model_name": DEFAULT_MODEL,
-        "run_id": DEFAULT_RUN_ID,
+        "model_name": "GPT-4o",
+        "run_id": f"experiment_{datetime.date.today().isoformat()}",
         "operator": os.getenv("USER", "unknown")
     }
 
 # Metadata input fields
 st.subheader("Metadata")
 
-st.session_state.metadata["model_name"] = st.text_input(
-    "Model Name", value=st.session_state.metadata["model_name"])
-st.session_state.metadata["run_id"] = st.text_input(
-    "Run ID", value=st.session_state.metadata["run_id"])
-st.session_state.metadata["operator"] = st.text_input(
-    "Operator", value=st.session_state.metadata["operator"])
+st.session_state.metadata["model_name"] = st.text_input("Model Name", value=st.session_state.metadata["model_name"])
+st.session_state.metadata["run_id"] = st.text_input("Run ID", value=st.session_state.metadata["run_id"])
+st.session_state.metadata["operator"] = st.text_input("Operator", value=st.session_state.metadata["operator"])
 
 st.markdown("---")
 
@@ -51,12 +48,12 @@ st.markdown("---")
 if "responses" not in st.session_state:
     st.session_state.responses = {q['id']: "" for q in questions}
 
-# Clear form button
+# Clear Form button
 if st.button("Clear Form"):
     st.session_state.responses = {q['id']: "" for q in questions}
     st.session_state.metadata = {
-        "model_name": DEFAULT_MODEL,
-        "run_id": DEFAULT_RUN_ID,
+        "model_name": "GPT-4o",
+        "run_id": f"experiment_{datetime.date.today().isoformat()}",
         "operator": os.getenv("USER", "unknown")
     }
     st.success("Form and metadata cleared!")
@@ -75,7 +72,6 @@ with st.form("response_form"):
     submitted = st.form_submit_button("Submit All Responses")
 
     if submitted:
-        # Build submission object
         submission = {
             "timestamp": datetime.datetime.now().isoformat(),
             "model_name": st.session_state.metadata["model_name"],
@@ -84,22 +80,17 @@ with st.form("response_form"):
             "responses": st.session_state.responses
         }
 
-        # Serialize to JSON
+        # Serialize submission to JSON string
         submission_json = json.dumps(submission, indent=2)
 
         # Create unique filename
         file_id = str(uuid.uuid4())
         timestamp_safe = submission['timestamp'].replace(":", "-")
-        filename = f"submission-{timestamp_safe}-{file_id}.json"
+        filename = f"gather/submission-{timestamp_safe}-{file_id}.json"
 
-        # Save temporarily to local file
-        tmp_file = f"/tmp/{filename}"
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            f.write(submission_json)
-
-        # Upload to Hugging Face Hub
+        # Upload submission directly from memory (no local file needed)
         hf_api.upload_file(
-            path_or_fileobj=tmp_file,
+            path_or_fileobj=io.BytesIO(submission_json.encode()),
             path_in_repo=filename,
             repo_id=HF_REPO_ID,
             repo_type="dataset"
@@ -110,8 +101,8 @@ with st.form("response_form"):
         # Clear form after submission
         st.session_state.responses = {q['id']: "" for q in questions}
         st.session_state.metadata = {
-            "model_name": DEFAULT_MODEL,
-            "run_id": DEFAULT_RUN_ID,
+            "model_name": "GPT-4o",
+            "run_id": f"experiment_{datetime.date.today().isoformat()}",
             "operator": os.getenv("USER", "unknown")
         }
 
