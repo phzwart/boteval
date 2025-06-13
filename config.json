@@ -1,0 +1,10 @@
+{
+  "google_drive": {
+    "target_folder_id": "1enpDHMDQQpOaa4hlBnIcnxXUB26RPGUw"
+  },
+  "experiment": {
+    "default_model_name": "notebooklm-terwilliger",
+    "default_run_id": "experiment_2024_06_13"
+  }
+}
+
