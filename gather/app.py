@@ -5,8 +5,9 @@ import csv
 import datetime
 
 # Paths
-QUESTIONS_FILE = os.path.join("..", "questions.json")
-RESPONSES_FILE = os.path.join("data", "responses.csv")
+QUESTIONS_FILE = "questions.json"
+RESPONSES_FILE = "gather/data/responses.csv"
+
 
 # Ensure data directory exists
 os.makedirs("data", exist_ok=True)
@@ -62,7 +63,7 @@ with st.form("response_form"):
         st.session_state.responses[q['id']] = st.text_area(
             f"**{q['id']}**: {q['question']}", 
             height=200, 
-            value=st.session_state.responses[q['id"]]
+            value=st.session_state.responses[q['id']]
         )
 
     submitted = st.form_submit_button("Submit All Responses")
@@ -86,7 +87,7 @@ with st.form("response_form"):
                     st.session_state.metadata["operator"],
                     q['id'],
                     q['question'],
-                    st.session_state.responses[q['id"]]
+                    st.session_state.responses[q['id']]
                 ]
                 writer.writerow(row)
 
