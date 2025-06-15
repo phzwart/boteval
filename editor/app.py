@@ -8,6 +8,30 @@ import uuid
 hf_token = st.secrets["hf"]["token"]
 HF_REPO_ID = st.secrets["hf"]["repo_id"]
 
+# Initialize authentication state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+# Authentication function
+def authenticate_user(email, password):
+    authorized_users = st.secrets.get("authorized_users", {})
+    return email in authorized_users and authorized_users[email] == password
+
+# Login form
+if not st.session_state.authenticated:
+    st.title("Login")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    
+    if st.button("Login"):
+        if authenticate_user(email, password):
+            st.session_state.authenticated = True
+            st.session_state.user_email = email
+            st.experimental_rerun()
+        else:
+            st.error("Invalid email or password")
+    st.stop()
+
 # Initialize Hugging Face API client
 hf_api = HfApi(token=hf_token)
 
