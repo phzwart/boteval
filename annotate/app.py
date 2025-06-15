@@ -6,6 +6,9 @@ import io
 import os
 from huggingface_hub import HfApi, hf_hub_download
 
+# Set Streamlit page config - must be first Streamlit command
+st.set_page_config(page_title="Boteval Annotation App", layout="wide")
+
 # Load secrets
 hf_token = st.secrets["hf"]["token"]
 HF_REPO_ID = st.secrets["hf"]["repo_id"]
@@ -97,8 +100,6 @@ for q in questions:
 
 topics_list = sorted(list(topics_set))
 
-# Initialize Streamlit page
-st.set_page_config(page_title="Boteval Annotation App", layout="wide")
 st.title("LLM Question Annotation")
 
 # Display session ID
