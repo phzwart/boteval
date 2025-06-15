@@ -69,16 +69,25 @@ if not annotator:
     st.warning("Please enter your name to begin.")
     st.stop()
 
-# Topic selection
-selected_topic = st.selectbox("Select Topic to Annotate", topics_list)
+# Topic selection with radio buttons
+st.markdown("**Filter by Topic:**")
+selected_topic = st.radio(
+    "Select Topic to Filter",
+    options=["All Topics"] + topics_list,
+    index=0,  # Default to "All Topics"
+    horizontal=True
+)
 
-# Filter questions for selected topic
-if selected_topic == "None":
-    questions_to_annotate = [q for q in questions if not q.get("topic")]
+# Filter questions based on topic selection
+if selected_topic == "All Topics":
+    questions_to_annotate = questions
 else:
-    questions_to_annotate = [
-        q for q in questions if selected_topic in q.get("topic", [])
-    ]
+    if selected_topic == "None":
+        questions_to_annotate = [q for q in questions if not q.get("topic")]
+    else:
+        questions_to_annotate = [
+            q for q in questions if selected_topic in q.get("topic", [])
+        ]
 
 # Streamlit session state for answers
 if "annotations" not in st.session_state:
