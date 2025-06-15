@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="Boteval Response Collector", layout="wide")
+
 import json
 import datetime
 import uuid
@@ -93,8 +95,6 @@ questions_file_path = hf_hub_download(
 with open(questions_file_path, "r") as f:
     questions = json.load(f)
 
-# Set Streamlit page config
-st.set_page_config(page_title="Boteval Response Collector", layout="wide")
 st.title("LLM Response Collector")
 
 # Display session ID
