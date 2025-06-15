@@ -89,36 +89,48 @@ st.divider()
 # Annotation loop
 for q in questions_to_annotate:
     qid = q["id"]
-    st.subheader(f"{qid}: {q['question']}")
+    st.subheader(f"Question ID: {qid}")
+    
+    # Display question and answer
+    st.markdown("**Question:**")
+    st.markdown(q['question'])
+    st.markdown("**Answer:**")
+    st.markdown(q['answer'])
 
-    benchmark = st.text_area(
-        f"Proposed Answer ({qid})",
-        value=st.session_state.annotations.get(qid, {}).get("benchmark", ""),
-        key=f"benchmark_{qid}"
+    # Question quality rating
+    st.markdown("**Question Quality Rating:**")
+    question_quality = st.radio(
+        f"Rate the question quality",
+        options=[-1, 0, 1],
+        format_func=lambda x: { -1: "Poor (-1)", 0: "Neutral (0)", 1: "Good (+1)" }[x],
+        index=1,
+        key=f"q_quality_{qid}"
     )
 
-    # SAFER RADIO INDEX HANDLING
-    options = [-1, 0, 1]
-    current_value = st.session_state.annotations.get(qid, {}).get("quality", 1)
-    try:
-        index = options.index(current_value)
-    except ValueError:
-        index = options.index(0)
+    # Answer quality rating
+    st.markdown("**Answer Quality Rating:**")
+    answer_quality = st.radio(
+        f"Rate the answer quality",
+        options=[-1, 0, 1],
+        format_func=lambda x: { -1: "Poor (-1)", 0: "Neutral (0)", 1: "Good (+1)" }[x],
+        index=1,
+        key=f"a_quality_{qid}"
+    )
 
-    quality = st.radio(
-        f"Question Quality ({qid})",
-        options=options,
-        format_func=lambda x: { -1: "Bad (-1)", 0: "Neutral (0)", 1: "Good (+1)" }[x],
-        index=index,
-        key=f"quality_{qid}"
+    # Comments field
+    comments = st.text_area(
+        "Additional Comments",
+        value=st.session_state.annotations.get(qid, {}).get("comments", ""),
+        key=f"comments_{qid}"
     )
 
     st.session_state.annotations[qid] = {
-        "benchmark": benchmark,
-        "quality": quality
+        "question_quality": question_quality,
+        "answer_quality": answer_quality,
+        "comments": comments
     }
 
-st.divider()
+    st.divider()
 
 # Submit all annotations button
 if st.button("Submit Annotations"):
