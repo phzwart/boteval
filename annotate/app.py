@@ -1,13 +1,12 @@
 import streamlit as st
+st.set_page_config(page_title="Boteval Annotation App", layout="wide")
+
 import json
 import datetime
 import uuid
 import io
 import os
 from huggingface_hub import HfApi, hf_hub_download
-
-# Set Streamlit page config - must be first Streamlit command
-st.set_page_config(page_title="Boteval Annotation App", layout="wide")
 
 # Load secrets
 hf_token = st.secrets["hf"]["token"]
