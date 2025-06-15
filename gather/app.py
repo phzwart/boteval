@@ -29,7 +29,7 @@ if not st.session_state.authenticated:
         if authenticate_user(email, password):
             st.session_state.authenticated = True
             st.session_state.user_email = email
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid email or password")
     st.stop()

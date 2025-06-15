@@ -27,7 +27,7 @@ if not st.session_state.authenticated:
         if authenticate_user(email, password):
             st.session_state.authenticated = True
             st.session_state.user_email = email
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid email or password")
     st.stop()
@@ -101,7 +101,7 @@ for idx, q in enumerate(st.session_state.questions):
         if st.button("Delete", key=f"delete_{idx}"):
             st.session_state.questions.pop(idx)
             st.success("Question deleted.")
-            st.experimental_rerun()  # Refresh after delete
+            st.rerun()  # Refresh after delete
 
 st.divider()
 
