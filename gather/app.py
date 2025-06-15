@@ -12,9 +12,22 @@ from huggingface_hub import HfApi, hf_hub_download
 hf_token = st.secrets["hf"]["token"]
 HF_REPO_ID = st.secrets["hf"]["repo_id"]
 
-# Initialize authentication state
+# Initialize session states
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+
+if "metadata" not in st.session_state:
+    st.session_state.metadata = {
+        "model_name": "GPT-4",
+        "run_id": f"experiment_{datetime.date.today().isoformat()}",
+        "operator": os.getenv("USER") or os.getenv("USERNAME") or "unknown"
+    }
+
+if "responses" not in st.session_state:
+    st.session_state.responses = {}
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = None
 
 # Authentication function
 def authenticate_user(email, password):
@@ -35,10 +48,6 @@ if not st.session_state.authenticated:
         else:
             st.error("Invalid email or password")
     st.stop()
-
-# Session management
-if "session_id" not in st.session_state:
-    st.session_state.session_id = None
 
 # Ask for session ID after login
 if st.session_state.session_id is None:
@@ -63,7 +72,7 @@ if st.session_state.session_id is None:
                     session_data = json.load(f)
                 st.session_state.session_id = session_id
                 st.session_state.responses = session_data.get("responses", {})
-                st.session_state.metadata = session_data.get("metadata", {})
+                st.session_state.metadata = session_data.get("metadata", st.session_state.metadata)
                 st.success("Session loaded successfully!")
                 st.rerun()
             except Exception as e:
@@ -72,11 +81,6 @@ if st.session_state.session_id is None:
         if st.button("Create New Session"):
             st.session_state.session_id = str(uuid.uuid4())
             st.session_state.responses = {}
-            st.session_state.metadata = {
-                "model_name": "GPT-4",
-                "run_id": f"experiment_{datetime.date.today().isoformat()}",
-                "operator": os.getenv("USER") or os.getenv("USERNAME") or "unknown"
-            }
             st.success(f"New session created! Your session ID is: {st.session_state.session_id}")
             st.info("Please save this session ID to continue your work later.")
             st.rerun()
@@ -103,14 +107,14 @@ st.info(f"Current Session ID: {st.session_state.session_id}")
 # Metadata input fields
 st.subheader("Metadata")
 
-st.session_state.metadata["model_name"] = st.text_input("Model Name", value=st.session_state.metadata.get("model_name", "GPT-4"))
-st.session_state.metadata["run_id"] = st.text_input("Run ID", value=st.session_state.metadata.get("run_id", f"experiment_{datetime.date.today().isoformat()}"))
-st.session_state.metadata["operator"] = st.text_input("Operator", value=st.session_state.metadata.get("operator", os.getenv("USER") or os.getenv("USERNAME") or "unknown"))
+st.session_state.metadata["model_name"] = st.text_input("Model Name", value=st.session_state.metadata["model_name"])
+st.session_state.metadata["run_id"] = st.text_input("Run ID", value=st.session_state.metadata["run_id"])
+st.session_state.metadata["operator"] = st.text_input("Operator", value=st.session_state.metadata["operator"])
 
 st.markdown("---")
 
-# Initialize session state for responses if not exists
-if "responses" not in st.session_state:
+# Initialize responses for questions if not exists
+if not st.session_state.responses:
     st.session_state.responses = {q['id']: "" for q in questions}
 
 # Clear Form button
