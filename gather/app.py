@@ -34,6 +34,51 @@ if not st.session_state.authenticated:
             st.error("Invalid email or password")
     st.stop()
 
+# Session management
+if "session_id" not in st.session_state:
+    st.session_state.session_id = None
+
+# Ask for session ID after login
+if st.session_state.session_id is None:
+    st.title("Session Management")
+    session_option = st.radio(
+        "Choose session option:",
+        ["Start New Session", "Continue Previous Session"]
+    )
+    
+    if session_option == "Continue Previous Session":
+        session_id = st.text_input("Enter your session ID:")
+        if st.button("Load Session"):
+            try:
+                # Try to load the session file from HF
+                session_file = hf_hub_download(
+                    repo_id=HF_REPO_ID,
+                    filename=f"gather/session-{session_id}.json",
+                    repo_type="dataset",
+                    token=hf_token
+                )
+                with open(session_file, "r") as f:
+                    session_data = json.load(f)
+                st.session_state.session_id = session_id
+                st.session_state.responses = session_data.get("responses", {})
+                st.session_state.metadata = session_data.get("metadata", {})
+                st.success("Session loaded successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Could not load session: {str(e)}")
+    else:
+        if st.button("Create New Session"):
+            st.session_state.session_id = str(uuid.uuid4())
+            st.session_state.responses = {}
+            st.session_state.metadata = {
+                "model_name": "GPT-4",
+                "run_id": f"experiment_{datetime.date.today().isoformat()}",
+                "operator": os.getenv("USER") or os.getenv("USERNAME") or "unknown"
+            }
+            st.success(f"New session created! Your session ID is: {st.session_state.session_id}")
+            st.info("Please save this session ID to continue your work later.")
+            st.rerun()
+
 # Initialize Hugging Face API client
 hf_api = HfApi(token=hf_token)
 
@@ -52,25 +97,19 @@ with open(questions_file_path, "r") as f:
 st.set_page_config(page_title="Boteval Response Collector", layout="wide")
 st.title("LLM Response Collector")
 
-# Initialize session state for metadata
-if "metadata" not in st.session_state:
-    operator = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
-    st.session_state.metadata = {
-        "model_name": "GPT-4o",
-        "run_id": f"experiment_{datetime.date.today().isoformat()}",
-        "operator": operator
-    }
+# Display session ID
+st.info(f"Current Session ID: {st.session_state.session_id}")
 
 # Metadata input fields
 st.subheader("Metadata")
 
-st.session_state.metadata["model_name"] = st.text_input("Model Name", value=st.session_state.metadata["model_name"])
-st.session_state.metadata["run_id"] = st.text_input("Run ID", value=st.session_state.metadata["run_id"])
-st.session_state.metadata["operator"] = st.text_input("Operator", value=st.session_state.metadata["operator"])
+st.session_state.metadata["model_name"] = st.text_input("Model Name", value=st.session_state.metadata.get("model_name", "GPT-4"))
+st.session_state.metadata["run_id"] = st.text_input("Run ID", value=st.session_state.metadata.get("run_id", f"experiment_{datetime.date.today().isoformat()}"))
+st.session_state.metadata["operator"] = st.text_input("Operator", value=st.session_state.metadata.get("operator", os.getenv("USER") or os.getenv("USERNAME") or "unknown"))
 
 st.markdown("---")
 
-# Initialize session state for responses
+# Initialize session state for responses if not exists
 if "responses" not in st.session_state:
     st.session_state.responses = {q['id']: "" for q in questions}
 
@@ -78,43 +117,46 @@ if "responses" not in st.session_state:
 if st.button("Clear Form"):
     st.session_state.responses = {q['id']: "" for q in questions}
     st.session_state.metadata = {
-        "model_name": "GPT-4o",
+        "model_name": "GPT-4",
         "run_id": f"experiment_{datetime.date.today().isoformat()}",
         "operator": os.getenv("USER", "unknown")
     }
     st.success("Form and metadata cleared!")
 
 # Main form
-with st.form("response_form"):
-    st.header("Questions")
+st.header("Questions")
 
-    for q in questions:
-        st.session_state.responses[q['id']] = st.text_area(
-            f"**{q['id']}**: {q['question']}",
-            height=200,
-            value=st.session_state.responses[q['id']]
-        )
+for q in questions:
+    qid = q['id']
+    st.subheader(f"Question ID: {qid}")
+    st.markdown(q['question'])
+    
+    response = st.text_area(
+        "Your Response",
+        value=st.session_state.responses.get(qid, ""),
+        height=200,
+        key=f"response_{qid}"
+    )
+    
+    st.session_state.responses[qid] = response
+    
+    # Submit button for individual question
+    if st.button(f"Submit Response for {qid}", key=f"submit_{qid}"):
+        timestamp = datetime.datetime.now().isoformat().replace(":", "-")
+        file_id = str(uuid.uuid4())
+        filename = f"gather/submission-{timestamp}-{file_id}.json"
 
-    submitted = st.form_submit_button("Submit All Responses")
-
-    if submitted:
         submission = {
-            "timestamp": datetime.datetime.now().isoformat(),
+            "session_id": st.session_state.session_id,
+            "timestamp": timestamp,
             "model_name": st.session_state.metadata["model_name"],
             "run_id": st.session_state.metadata["run_id"],
             "operator": st.session_state.metadata["operator"],
-            "responses": st.session_state.responses
+            "question_id": qid,
+            "responses": {qid: response}
         }
 
-        # Serialize submission to JSON string
         submission_json = json.dumps(submission, indent=2)
-
-        # Create unique filename
-        file_id = str(uuid.uuid4())
-        timestamp_safe = submission['timestamp'].replace(":", "-")
-        filename = f"gather/submission-{timestamp_safe}-{file_id}.json"
-
-        # Upload submission directly from memory (no local file needed)
         hf_api.upload_file(
             path_or_fileobj=io.BytesIO(submission_json.encode()),
             path_in_repo=filename,
@@ -122,13 +164,40 @@ with st.form("response_form"):
             repo_type="dataset"
         )
 
-        st.success("Submission uploaded to Hugging Face Hub successfully!")
-
-        # Clear form after submission
-        st.session_state.responses = {q['id']: "" for q in questions}
-        st.session_state.metadata = {
-            "model_name": "GPT-4o",
-            "run_id": f"experiment_{datetime.date.today().isoformat()}",
-            "operator": os.getenv("USER", "unknown")
+        # Save session state
+        session_data = {
+            "session_id": st.session_state.session_id,
+            "metadata": st.session_state.metadata,
+            "last_updated": timestamp,
+            "responses": st.session_state.responses
         }
+        session_json = json.dumps(session_data, indent=2)
+        hf_api.upload_file(
+            path_or_fileobj=io.BytesIO(session_json.encode()),
+            path_in_repo=f"gather/session-{st.session_state.session_id}.json",
+            repo_id=HF_REPO_ID,
+            repo_type="dataset"
+        )
+
+        st.success(f"Response for {qid} submitted successfully!")
+
+    st.divider()
+
+# Save session button
+if st.button("Save Current Session"):
+    timestamp = datetime.datetime.now().isoformat()
+    session_data = {
+        "session_id": st.session_state.session_id,
+        "metadata": st.session_state.metadata,
+        "last_updated": timestamp,
+        "responses": st.session_state.responses
+    }
+    session_json = json.dumps(session_data, indent=2)
+    hf_api.upload_file(
+        path_or_fileobj=io.BytesIO(session_json.encode()),
+        path_in_repo=f"gather/session-{st.session_state.session_id}.json",
+        repo_id=HF_REPO_ID,
+        repo_type="dataset"
+    )
+    st.success("Session saved successfully!")
 
