@@ -12,9 +12,15 @@ from huggingface_hub import HfApi, hf_hub_download
 hf_token = st.secrets["hf"]["token"]
 HF_REPO_ID = st.secrets["hf"]["repo_id"]
 
-# Initialize authentication state
+# Initialize session states
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+
+if "annotations" not in st.session_state:
+    st.session_state.annotations = {}
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = None
 
 # Authentication function
 def authenticate_user(email, password):
@@ -35,10 +41,6 @@ if not st.session_state.authenticated:
         else:
             st.error("Invalid email or password")
     st.stop()
-
-# Session management
-if "session_id" not in st.session_state:
-    st.session_state.session_id = None
 
 # Ask for session ID after login
 if st.session_state.session_id is None:
@@ -130,10 +132,6 @@ else:
         questions_to_annotate = [
             q for q in questions if selected_topic in q.get("topic", [])
         ]
-
-# Streamlit session state for answers
-if "annotations" not in st.session_state:
-    st.session_state.annotations = {}
 
 st.divider()
 
