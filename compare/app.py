@@ -170,18 +170,21 @@ st.download_button(
 for q_data in comparison_data:
     with st.expander(f"{q_data['id']}: {q_data['question'][:100]}..."):
         # Display metadata for all responses at the top
-        st.subheader("Session Information")
-        metadata_cols = st.columns(len(q_data["responses"]))
-        for idx, response in enumerate(q_data["responses"]):
-            with metadata_cols[idx]:
-                st.markdown(f"""
-                **Session {idx + 1}**
-                - **Model:** {response['model_name']}
-                - **Run ID:** {response['run_id']}
-                - **Operator:** {response['operator']}
-                """)
-        
-        st.divider()
+        if q_data["responses"]:
+            st.subheader("Session Information")
+            num_cols = min(len(q_data["responses"]), 3)  # Limit to 3 columns max
+            metadata_cols = st.columns(num_cols)
+            for idx, response in enumerate(q_data["responses"]):
+                col_idx = idx % num_cols
+                with metadata_cols[col_idx]:
+                    st.markdown(f"""
+                    **Session {idx + 1}**
+                    - **Model:** {response['model_name']}
+                    - **Run ID:** {response['run_id']}
+                    - **Operator:** {response['operator']}
+                    """)
+            
+            st.divider()
         
         # Display question and answer
         st.subheader("Question and Answer")
@@ -189,12 +192,14 @@ for q_data in comparison_data:
         st.markdown(f"**Answer:** {q_data['answer']}")
         st.markdown(f"**Topics:** {', '.join(q_data['topic'])}")
         
-        st.divider()
-        
-        # Display responses
-        st.subheader("Responses")
-        response_cols = st.columns(len(q_data["responses"]))
-        for idx, response in enumerate(q_data["responses"]):
-            with response_cols[idx]:
-                st.markdown(f"**Response {idx + 1}:**")
-                st.markdown(response['response']) 
+        if q_data["responses"]:
+            st.divider()
+            
+            # Display responses
+            st.subheader("Responses")
+            response_cols = st.columns(num_cols)
+            for idx, response in enumerate(q_data["responses"]):
+                col_idx = idx % num_cols
+                with response_cols[col_idx]:
+                    st.markdown(f"**Response {idx + 1}:**")
+                    st.markdown(response['response']) 
