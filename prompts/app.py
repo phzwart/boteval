@@ -45,6 +45,50 @@ prompts_data = load_prompts()
 
 st.title("System Prompt Manager")
 
+# Import section
+st.header("Import Prompts")
+import_tab1, import_tab2 = st.tabs(["Upload JSON File", "Paste JSON"])
+
+with import_tab1:
+    uploaded_file = st.file_uploader("Upload a JSON file with prompts", type=['json'])
+    if uploaded_file is not None:
+        try:
+            imported_data = json.load(uploaded_file)
+            if st.button("Import from File"):
+                # Merge imported prompts with existing ones
+                for prompt_id, prompt in imported_data.get("prompts", {}).items():
+                    if prompt_id not in prompts_data["prompts"]:
+                        prompt["id"] = prompt_id
+                        prompt["created_at"] = datetime.datetime.now().isoformat()
+                        prompt["updated_at"] = datetime.datetime.now().isoformat()
+                        prompts_data["prompts"][prompt_id] = prompt
+                save_prompts(prompts_data)
+                st.success("Prompts imported successfully!")
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error loading JSON file: {str(e)}")
+
+with import_tab2:
+    json_text = st.text_area("Paste your JSON here", height=200)
+    if json_text:
+        try:
+            imported_data = json.loads(json_text)
+            if st.button("Import from Text"):
+                # Merge imported prompts with existing ones
+                for prompt_id, prompt in imported_data.get("prompts", {}).items():
+                    if prompt_id not in prompts_data["prompts"]:
+                        prompt["id"] = prompt_id
+                        prompt["created_at"] = datetime.datetime.now().isoformat()
+                        prompt["updated_at"] = datetime.datetime.now().isoformat()
+                        prompts_data["prompts"][prompt_id] = prompt
+                save_prompts(prompts_data)
+                st.success("Prompts imported successfully!")
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error parsing JSON: {str(e)}")
+
+st.divider()
+
 # Sidebar for prompt selection and creation
 with st.sidebar:
     st.header("Prompt Management")
