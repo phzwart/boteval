@@ -129,6 +129,43 @@ selected_session_keys = st.multiselect(
 selected_sessions = [session_options[key] for key in selected_session_keys]
 responses = load_responses_from_sessions(selected_sessions)
 
+# Add file upload and JSON paste functionality
+st.header("Upload or Paste Evaluation Results")
+uploaded_file = st.file_uploader("Upload JSON file with evaluation results", type=['json'])
+json_text = st.text_area("Or paste JSON content here:", height=200)
+
+if uploaded_file is not None:
+    try:
+        uploaded_data = json.load(uploaded_file)
+        responses.append({
+            "session_id": "uploaded_file",
+            "metadata": {
+                "model_name": uploaded_data.get("model_name", "Uploaded Model"),
+                "run_id": uploaded_data.get("run_id", "uploaded"),
+                "operator": uploaded_data.get("operator", "user")
+            },
+            "responses": uploaded_data.get("responses", {})
+        })
+        st.success("Successfully loaded uploaded JSON file!")
+    except Exception as e:
+        st.error(f"Error loading uploaded file: {str(e)}")
+
+if json_text:
+    try:
+        pasted_data = json.loads(json_text)
+        responses.append({
+            "session_id": "pasted_json",
+            "metadata": {
+                "model_name": pasted_data.get("model_name", "Pasted Model"),
+                "run_id": pasted_data.get("run_id", "pasted"),
+                "operator": pasted_data.get("operator", "user")
+            },
+            "responses": pasted_data.get("responses", {})
+        })
+        st.success("Successfully loaded pasted JSON content!")
+    except Exception as e:
+        st.error(f"Error loading pasted JSON: {str(e)}")
+
 # Create comparison data structure
 comparison_data = []
 
