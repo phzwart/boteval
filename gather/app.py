@@ -135,14 +135,14 @@ def copy_to_clipboard(text, key):
     html_code = f"""
     <div>
         <button onclick="navigator.clipboard.writeText(`{text}`).then(() => {{ 
-            window.parent.postMessage({{type: 'streamlit:componentCommunication', data: 'copied', key: '{key}'}}, '*'); 
+            window.parent.postMessage({{type: 'streamlit:setComponentValue', value: true}}, '*'); 
         }})" 
                 style="padding: 0.25rem 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.2rem;">
             📋
         </button>
     </div>
     """
-    components.html(html_code, height=30)
+    return components.html(html_code, height=30, key=key)
 
 for q in questions:
     qid = q['id']
@@ -153,10 +153,9 @@ for q in questions:
     with col1:
         st.markdown(q['question'])
     with col2:
-        copy_to_clipboard(q['question'], f"copy_{qid}")
-        if st.session_state.get(f"copy_{qid}"):
+        copied = copy_to_clipboard(q['question'], f"copy_{qid}")
+        if copied:
             st.toast("Question copied to clipboard!")
-            st.session_state[f"copy_{qid}"] = False
     
     response = st.text_area(
         "Your Response",
