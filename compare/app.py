@@ -111,6 +111,7 @@ for question in questions:
     q_data = {
         "id": qid,
         "question": question["question"],
+        "answer": question.get("answer", ""),
         "topic": question.get("topic", []),
         "annotations": [],
         "responses": []
@@ -152,14 +153,16 @@ st.download_button(
 for q_data in comparison_data:
     with st.expander(f"{q_data['id']}: {q_data['question'][:100]}..."):
         st.markdown(f"**Question:** {q_data['question']}")
+        st.markdown(f"**Answer:** {q_data['answer']}")
         st.markdown(f"**Topics:** {', '.join(q_data['topic'])}")
         
         # Display annotations
         st.subheader("Annotations")
         for annotation in q_data["annotations"]:
+            benchmark = annotation['benchmark'] if annotation['benchmark'] else "Not provided"
             st.markdown(f"""
             - **Annotator:** {annotation['annotator']}
-            - **Benchmark:** {annotation['benchmark']}
+            - **Benchmark:** {benchmark}
             - **Quality:** {annotation['quality']}
             """)
         
