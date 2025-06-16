@@ -130,10 +130,17 @@ def validate_evaluation_data(data, schema):
         if isinstance(schema, dict):
             # Check required fields from schema
             for field, field_schema in schema.items():
-                if field not in data:
-                    return False, f"Missing required field at {path}: {field}"
+                # Skip validation if field is marked as optional (starts with '?')
+                is_optional = field.startswith('?')
+                field_name = field[1:] if is_optional else field
+                
+                if field_name not in data:
+                    if not is_optional:
+                        return False, f"Missing required field at {path}: {field_name}"
+                    continue
+                
                 # Recursively validate nested structure
-                is_valid, message = validate_against_schema(data[field], field_schema, f"{path}.{field}")
+                is_valid, message = validate_against_schema(data[field_name], field_schema, f"{path}.{field_name}")
                 if not is_valid:
                     return False, message
         elif isinstance(schema, list) and len(schema) > 0:
