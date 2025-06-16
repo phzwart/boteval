@@ -166,36 +166,6 @@ st.download_button(
     mime="application/json"
 )
 
-# Add upload to HF functionality
-def upload_to_hf(comparison_data):
-    try:
-        # Create a unique filename with timestamp
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"compare/comparison_{timestamp}.json"
-        
-        # Convert data to JSON string
-        json_str = json.dumps(comparison_data, indent=2)
-        
-        # Upload to HF
-        hf_api.upload_file(
-            path_or_fileobj=io.StringIO(json_str),
-            path_in_repo=filename,
-            repo_id=HF_REPO_ID,
-            repo_type="dataset"
-        )
-        return True, filename
-    except Exception as e:
-        return False, str(e)
-
-# Add upload button
-if st.button("Upload Comparison to Hugging Face"):
-    success, result = upload_to_hf(comparison_data)
-    if success:
-        st.success(f"Successfully uploaded comparison to {result}")
-    else:
-        st.error(f"Failed to upload comparison: {result}")
-
 # Add file upload and JSON paste functionality
 st.header("Upload or Paste Evaluation Results")
 uploaded_file = st.file_uploader("Upload JSON file with evaluation results", type=['json'])
@@ -232,6 +202,40 @@ if json_text:
         st.success("Successfully loaded pasted JSON content!")
     except Exception as e:
         st.error(f"Error loading pasted JSON: {str(e)}")
+
+# Add upload to HF functionality
+def upload_to_hf(comparison_data):
+    try:
+        # Create a unique filename with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"compare/comparison_{timestamp}.json"
+        
+        # Convert data to JSON string
+        json_str = json.dumps(comparison_data, indent=2)
+        
+        # Upload to HF
+        hf_api.upload_file(
+            path_or_fileobj=io.StringIO(json_str),
+            path_in_repo=filename,
+            repo_id=HF_REPO_ID,
+            repo_type="dataset"
+        )
+        return True, filename
+    except Exception as e:
+        return False, str(e)
+
+# Add upload button
+if st.button("Upload Comparison to Hugging Face"):
+    success, result = upload_to_hf(comparison_data)
+    if success:
+        st.success(f"Successfully uploaded comparison to {result}")
+    else:
+        st.error(f"Failed to upload comparison: {result}")
+
+st.divider()
+st.markdown("### 📋 Detailed Item Inspection (FYI Only)")
+st.markdown("Below you can inspect individual questions and responses in detail. This view is for reference purposes only.")
 
 # Display the data in an expandable format
 for q_data in comparison_data:
