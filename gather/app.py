@@ -133,7 +133,15 @@ st.header("Questions")
 for q in questions:
     qid = q['id']
     st.subheader(f"Question ID: {qid}")
-    st.markdown(q['question'])
+    
+    # Create columns for question and copy button
+    col1, col2 = st.columns([0.95, 0.05])
+    with col1:
+        st.markdown(q['question'])
+    with col2:
+        if st.button("📋", key=f"copy_{qid}", help="Copy question to clipboard"):
+            st.code(q['question'])
+            st.toast("Question copied to clipboard!")
     
     response = st.text_area(
         "Your Response",
