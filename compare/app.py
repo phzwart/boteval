@@ -169,16 +169,32 @@ st.download_button(
 # Display the data in an expandable format
 for q_data in comparison_data:
     with st.expander(f"{q_data['id']}: {q_data['question'][:100]}..."):
+        # Display metadata for all responses at the top
+        st.subheader("Session Information")
+        metadata_cols = st.columns(len(q_data["responses"]))
+        for idx, response in enumerate(q_data["responses"]):
+            with metadata_cols[idx]:
+                st.markdown(f"""
+                **Session {idx + 1}**
+                - **Model:** {response['model_name']}
+                - **Run ID:** {response['run_id']}
+                - **Operator:** {response['operator']}
+                """)
+        
+        st.divider()
+        
+        # Display question and answer
+        st.subheader("Question and Answer")
         st.markdown(f"**Question:** {q_data['question']}")
         st.markdown(f"**Answer:** {q_data['answer']}")
         st.markdown(f"**Topics:** {', '.join(q_data['topic'])}")
         
+        st.divider()
+        
         # Display responses
         st.subheader("Responses")
-        for response in q_data["responses"]:
-            st.markdown(f"""
-            - **Model:** {response['model_name']}
-            - **Run ID:** {response['run_id']}
-            - **Operator:** {response['operator']}
-            - **Response:** {response['response']}
-            """) 
+        response_cols = st.columns(len(q_data["responses"]))
+        for idx, response in enumerate(q_data["responses"]):
+            with response_cols[idx]:
+                st.markdown(f"**Response {idx + 1}:**")
+                st.markdown(response['response']) 
