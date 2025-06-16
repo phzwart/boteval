@@ -6,7 +6,6 @@ import datetime
 import uuid
 import io
 import os
-import pyperclip
 from huggingface_hub import HfApi, hf_hub_download
 
 # Load Hugging Face token and repo ID from Streamlit Secrets
@@ -141,7 +140,7 @@ for q in questions:
         st.markdown(q['question'])
     with col2:
         if st.button("📋", key=f"copy_{qid}", help="Copy question to clipboard"):
-            pyperclip.copy(q['question'])
+            st.write(f'<script>navigator.clipboard.writeText(`{q["question"]}`)</script>', unsafe_allow_html=True)
             st.toast("Question copied to clipboard!")
     
     response = st.text_area(
