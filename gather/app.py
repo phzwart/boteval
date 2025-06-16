@@ -134,18 +134,10 @@ st.header("Questions")
 def copy_to_clipboard(text):
     html_code = f"""
     <div>
-        <button onclick="copyToClipboard()" style="padding: 0.25rem 0.5rem; background: #ff4b4b; color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
+        <button onclick="navigator.clipboard.writeText(`{text}`).then(() => {{ window.parent.postMessage({{type: 'streamlit:componentCommunication', data: 'copied'}}, '*'); }})" 
+                style="padding: 0.25rem 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.2rem;">
             📋
         </button>
-        <script>
-        function copyToClipboard() {{
-            navigator.clipboard.writeText(`{text}`).then(function() {{
-                // Success - we'll show the toast from Python
-            }}, function(err) {{
-                console.error('Could not copy text: ', err);
-            }});
-        }}
-        </script>
     </div>
     """
     components.html(html_code, height=30)
@@ -160,8 +152,6 @@ for q in questions:
         st.markdown(q['question'])
     with col2:
         copy_to_clipboard(q['question'])
-        if st.button("📋", key=f"btn_{qid}", help="Copy question to clipboard"):
-            st.toast("Question copied to clipboard!")
     
     response = st.text_area(
         "Your Response",
