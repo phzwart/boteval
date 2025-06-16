@@ -130,7 +130,10 @@ selected_sessions = [session_options[key] for key in selected_session_keys]
 responses = load_responses_from_sessions(selected_sessions)
 
 # Create comparison data structure
-comparison_data = []
+comparison_data = {
+    "session_ids": [session["session_id"] for session in selected_sessions],
+    "items": []
+}
 
 for question in questions:
     qid = question["id"]
@@ -149,10 +152,11 @@ for question in questions:
                 "model_name": response["metadata"]["model_name"],
                 "run_id": response["metadata"]["run_id"],
                 "operator": response["metadata"]["operator"],
+                "session_id": response["session_id"],
                 "response": response["responses"][qid]
             })
     
-    comparison_data.append(q_data)
+    comparison_data["items"].append(q_data)
 
 # Display the data
 st.header("Comparison Data")
@@ -175,7 +179,7 @@ if uploaded_file is not None:
     try:
         uploaded_data = json.load(uploaded_file)
         responses.append({
-            "session_id": "uploaded_file",
+            "session_id": uploaded_data.get("session_id", "uploaded_file"),
             "metadata": {
                 "model_name": uploaded_data.get("model_name", "Uploaded Model"),
                 "run_id": uploaded_data.get("run_id", "uploaded"),
@@ -191,7 +195,7 @@ if json_text:
     try:
         pasted_data = json.loads(json_text)
         responses.append({
-            "session_id": "pasted_json",
+            "session_id": pasted_data.get("session_id", "pasted_json"),
             "metadata": {
                 "model_name": pasted_data.get("model_name", "Pasted Model"),
                 "run_id": pasted_data.get("run_id", "pasted"),
@@ -239,7 +243,7 @@ st.markdown("### 📋 Detailed Item Inspection (FYI Only)")
 st.markdown("Below you can inspect individual questions and responses in detail. This view is for reference purposes only.")
 
 # Display the data in an expandable format
-for q_data in comparison_data:
+for q_data in comparison_data["items"]:
     with st.expander(f"{q_data['id']}: {q_data['question'][:100]}..."):
         # Display metadata for all responses at the top
         if q_data["responses"]:
@@ -254,6 +258,7 @@ for q_data in comparison_data:
                     - **Model:** {response['model_name']}
                     - **Run ID:** {response['run_id']}
                     - **Operator:** {response['operator']}
+                    - **Session ID:** {response['session_id']}
                     """)
             
             st.divider()
