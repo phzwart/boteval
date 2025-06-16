@@ -6,6 +6,7 @@ import datetime
 import uuid
 import io
 import os
+import streamlit.components.v1 as components
 from huggingface_hub import HfApi, hf_hub_download
 
 # Load Hugging Face token and repo ID from Streamlit Secrets
@@ -130,6 +131,25 @@ if st.button("Clear Form"):
 # Main form
 st.header("Questions")
 
+def copy_to_clipboard(text):
+    html_code = f"""
+    <div>
+        <button onclick="copyToClipboard()" style="padding: 0.25rem 0.5rem; background: #ff4b4b; color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
+            📋
+        </button>
+        <script>
+        function copyToClipboard() {{
+            navigator.clipboard.writeText(`{text}`).then(function() {{
+                // Success - we'll show the toast from Python
+            }}, function(err) {{
+                console.error('Could not copy text: ', err);
+            }});
+        }}
+        </script>
+    </div>
+    """
+    components.html(html_code, height=30)
+
 for q in questions:
     qid = q['id']
     st.subheader(f"Question ID: {qid}")
@@ -139,7 +159,7 @@ for q in questions:
     with col1:
         st.markdown(q['question'])
     with col2:
-        st.code(q['question'], language="text")
+        copy_to_clipboard(q['question'])
         if st.button("📋", key=f"btn_{qid}", help="Copy question to clipboard"):
             st.toast("Question copied to clipboard!")
     
