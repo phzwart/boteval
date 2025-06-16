@@ -206,8 +206,13 @@ with generate_tab:
     with col2:
         max_tokens = st.number_input("Max Tokens", min_value=1, value=1000)
     
+    # Prompt name and description
+    st.subheader("Prompt Details")
+    prompt_name = st.text_input("Prompt Name", value="Evaluation System Prompt")
+    prompt_description = st.text_area("Prompt Description", value="System prompt for evaluating responses using custom criteria and evaluation schema")
+    
     # Generate button
-    if st.button("Generate System Prompt"):
+    if st.button("Generate and Save System Prompt"):
         if not custom_prompt:
             st.error("Please enter a custom prompt.")
         elif not evaluation_schema:
@@ -224,7 +229,34 @@ Evaluation Schema:
 
 Please evaluate the responses according to both the custom instructions and the evaluation schema provided above."""
 
-            # Display the generated prompt
+            # Create prompt object
+            prompt_id = str(uuid.uuid4())
+            new_prompt = {
+                "id": prompt_id,
+                "name": prompt_name,
+                "description": prompt_description,
+                "content": system_prompt,
+                "created_at": datetime.datetime.now().isoformat(),
+                "updated_at": datetime.datetime.now().isoformat(),
+                "tags": ["evaluation", "system-prompt"],
+                "metadata": {
+                    "author": st.session_state.get("user_email", "unknown"),
+                    "model": "GPT-4",
+                    "parameters": {
+                        "temperature": temperature,
+                        "max_tokens": max_tokens
+                    }
+                }
+            }
+            
+            # Add to prompts data
+            prompts_data["prompts"][prompt_id] = new_prompt
+            
+            # Save to Hugging Face
+            save_prompts(prompts_data)
+            
+            # Display success message and the generated prompt
+            st.success("System prompt saved successfully!")
             st.subheader("Generated System Prompt")
             st.text_area("System Prompt", value=system_prompt, height=400)
             
