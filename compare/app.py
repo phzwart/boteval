@@ -105,6 +105,49 @@ def load_responses_from_sessions(selected_sessions):
     
     return responses
 
+# Function to load evaluation schema
+@st.cache_data(ttl=60)
+def load_evaluation_schema():
+    try:
+        schema_file_path = hf_hub_download(
+            repo_id=HF_REPO_ID,
+            filename="evaluation.json",
+            repo_type="dataset",
+            token=hf_token
+        )
+        with open(schema_file_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        st.warning(f"Could not load evaluation schema: {str(e)}")
+        return None
+
+# Function to validate evaluation data against schema
+def validate_evaluation_data(data, schema):
+    if not schema:
+        return True, "No schema available for validation"
+    
+    def validate_against_schema(data, schema, path=""):
+        if isinstance(schema, dict):
+            # Check required fields from schema
+            for field, field_schema in schema.items():
+                if field not in data:
+                    return False, f"Missing required field at {path}: {field}"
+                # Recursively validate nested structure
+                is_valid, message = validate_against_schema(data[field], field_schema, f"{path}.{field}")
+                if not is_valid:
+                    return False, message
+        elif isinstance(schema, list) and len(schema) > 0:
+            # For arrays, validate each item against the first schema item
+            if not isinstance(data, list):
+                return False, f"Expected array at {path}"
+            for i, item in enumerate(data):
+                is_valid, message = validate_against_schema(item, schema[0], f"{path}[{i}]")
+                if not is_valid:
+                    return False, message
+        return True, "Validation successful"
+    
+    return validate_against_schema(data, schema)
+
 # Load questions and session metadata
 questions = load_questions()
 sessions = load_session_metadata()
@@ -175,9 +218,19 @@ st.header("Upload or Paste Evaluation Results")
 uploaded_file = st.file_uploader("Upload JSON file with evaluation results", type=['json'])
 json_text = st.text_area("Or paste JSON content here:", height=200)
 
+# Load evaluation schema
+evaluation_schema = load_evaluation_schema()
+
 if uploaded_file is not None:
     try:
         uploaded_data = json.load(uploaded_file)
+        # Validate against schema if available
+        if evaluation_schema:
+            is_valid, message = validate_evaluation_data(uploaded_data, evaluation_schema)
+            if not is_valid:
+                st.error(f"Validation error: {message}")
+                st.stop()
+        
         responses.append({
             "session_id": uploaded_data.get("session_id", "uploaded_file"),
             "metadata": {
@@ -194,6 +247,13 @@ if uploaded_file is not None:
 if json_text:
     try:
         pasted_data = json.loads(json_text)
+        # Validate against schema if available
+        if evaluation_schema:
+            is_valid, message = validate_evaluation_data(pasted_data, evaluation_schema)
+            if not is_valid:
+                st.error(f"Validation error: {message}")
+                st.stop()
+        
         responses.append({
             "session_id": pasted_data.get("session_id", "pasted_json"),
             "metadata": {
