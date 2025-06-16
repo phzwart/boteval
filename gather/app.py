@@ -139,8 +139,8 @@ for q in questions:
     with col1:
         st.markdown(q['question'])
     with col2:
-        if st.button("📋", key=f"copy_{qid}", help="Copy question to clipboard"):
-            st.write(f'<script>navigator.clipboard.writeText(`{q["question"]}`)</script>', unsafe_allow_html=True)
+        st.text_area("", q['question'], key=f"copy_{qid}", height=0, label_visibility="collapsed")
+        if st.button("📋", key=f"btn_{qid}", help="Copy question to clipboard"):
             st.toast("Question copied to clipboard!")
     
     response = st.text_area(
