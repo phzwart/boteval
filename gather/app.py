@@ -135,7 +135,7 @@ def copy_to_clipboard(text):
     html_code = f"""
     <div>
         <button onclick="navigator.clipboard.writeText(`{text}`).then(() => {{ 
-            window.parent.postMessage({{type: 'streamlit:componentCommunication', data: 'copied'}}, '*'); 
+            alert('Question copied to clipboard!');
         }})" 
                 style="padding: 0.25rem 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.2rem;">
             📋
@@ -154,8 +154,6 @@ for q in questions:
         st.markdown(q['question'])
     with col2:
         copy_to_clipboard(q['question'])
-        if st.button("📋", key=f"btn_{qid}", help="Copy question to clipboard"):
-            st.toast("Question copied to clipboard!")
     
     response = st.text_area(
         "Your Response",
