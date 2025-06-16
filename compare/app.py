@@ -52,38 +52,15 @@ def load_questions():
     with open(questions_file_path, "r") as f:
         return json.load(f)
 
-# Function to load all annotations
+# Function to load session metadata
 @st.cache_data(ttl=60)
-def load_annotations():
-    annotations = []
-    # List all files in the annotate directory
-    files = hf_api.list_repo_files(repo_id=HF_REPO_ID, repo_type="dataset")
-    annotation_files = [f for f in files if f.startswith("annotate/annotation-")]
-    
-    for file in annotation_files:
-        try:
-            file_path = hf_hub_download(
-                repo_id=HF_REPO_ID,
-                filename=file,
-                repo_type="dataset",
-                token=hf_token
-            )
-            with open(file_path, "r") as f:
-                annotations.append(json.load(f))
-        except Exception as e:
-            st.warning(f"Could not load annotation file {file}: {str(e)}")
-    
-    return annotations
-
-# Function to load all responses
-@st.cache_data(ttl=60)
-def load_responses():
-    responses = []
+def load_session_metadata():
+    sessions = []
     # List all files in the gather directory
     files = hf_api.list_repo_files(repo_id=HF_REPO_ID, repo_type="dataset")
-    response_files = [f for f in files if f.startswith("gather/submission-")]
+    session_files = [f for f in files if f.startswith("gather/session-")]
     
-    for file in response_files:
+    for file in session_files:
         try:
             file_path = hf_hub_download(
                 repo_id=HF_REPO_ID,
@@ -92,16 +69,65 @@ def load_responses():
                 token=hf_token
             )
             with open(file_path, "r") as f:
-                responses.append(json.load(f))
+                session_data = json.load(f)
+                sessions.append({
+                    "session_id": session_data["session_id"],
+                    "metadata": session_data["metadata"],
+                    "last_updated": session_data["last_updated"],
+                    "filename": file
+                })
         except Exception as e:
-            st.warning(f"Could not load response file {file}: {str(e)}")
+            st.warning(f"Could not load session file {file}: {str(e)}")
+    
+    return sessions
+
+# Function to load responses from selected sessions
+@st.cache_data(ttl=60)
+def load_responses_from_sessions(selected_sessions):
+    responses = []
+    for session in selected_sessions:
+        try:
+            file_path = hf_hub_download(
+                repo_id=HF_REPO_ID,
+                filename=session["filename"],
+                repo_type="dataset",
+                token=hf_token
+            )
+            with open(file_path, "r") as f:
+                session_data = json.load(f)
+                responses.append({
+                    "session_id": session_data["session_id"],
+                    "metadata": session_data["metadata"],
+                    "responses": session_data["responses"]
+                })
+        except Exception as e:
+            st.warning(f"Could not load session {session['session_id']}: {str(e)}")
     
     return responses
 
-# Load all data
+# Load questions and session metadata
 questions = load_questions()
-annotations = load_annotations()
-responses = load_responses()
+sessions = load_session_metadata()
+
+# Display session selection
+st.header("Select Sessions to Compare")
+
+# Create a list of session options with metadata
+session_options = {
+    f"{s['metadata']['model_name']} - {s['metadata']['run_id']} - {s['last_updated']}": s 
+    for s in sessions
+}
+
+# Allow multiple session selection
+selected_session_keys = st.multiselect(
+    "Choose sessions to compare:",
+    options=list(session_options.keys()),
+    format_func=lambda x: x
+)
+
+# Load responses from selected sessions
+selected_sessions = [session_options[key] for key in selected_session_keys]
+responses = load_responses_from_sessions(selected_sessions)
 
 # Create comparison data structure
 comparison_data = []
@@ -113,25 +139,16 @@ for question in questions:
         "question": question["question"],
         "answer": question.get("answer", ""),
         "topic": question.get("topic", []),
-        "annotations": [],
         "responses": []
     }
     
-    # Add annotations
-    for annotation in annotations:
-        if qid in annotation.get("annotations", {}):
-            q_data["annotations"].append({
-                "annotator": annotation["annotator"],
-                "benchmark": annotation["annotations"][qid].get("benchmark", ""),
-                "quality": annotation["annotations"][qid].get("quality", 0)
-            })
-    
-    # Add responses
+    # Add responses from selected sessions
     for response in responses:
-        if qid in response.get("responses", {}):
+        if qid in response["responses"]:
             q_data["responses"].append({
-                "model_name": response["model_name"],
-                "run_id": response["run_id"],
+                "model_name": response["metadata"]["model_name"],
+                "run_id": response["metadata"]["run_id"],
+                "operator": response["metadata"]["operator"],
                 "response": response["responses"][qid]
             })
     
@@ -156,21 +173,12 @@ for q_data in comparison_data:
         st.markdown(f"**Answer:** {q_data['answer']}")
         st.markdown(f"**Topics:** {', '.join(q_data['topic'])}")
         
-        # Display annotations
-        st.subheader("Annotations")
-        for annotation in q_data["annotations"]:
-            benchmark = annotation['benchmark'] if annotation['benchmark'] else "Not provided"
-            st.markdown(f"""
-            - **Annotator:** {annotation['annotator']}
-            - **Benchmark:** {benchmark}
-            - **Quality:** {annotation['quality']}
-            """)
-        
         # Display responses
         st.subheader("Responses")
         for response in q_data["responses"]:
             st.markdown(f"""
             - **Model:** {response['model_name']}
             - **Run ID:** {response['run_id']}
+            - **Operator:** {response['operator']}
             - **Response:** {response['response']}
             """) 
