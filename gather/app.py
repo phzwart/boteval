@@ -139,7 +139,7 @@ for q in questions:
     with col1:
         st.markdown(q['question'])
     with col2:
-        st.text_area("", q['question'], key=f"copy_{qid}", height=0, label_visibility="collapsed")
+        st.code(q['question'], language="text")
         if st.button("📋", key=f"btn_{qid}", help="Copy question to clipboard"):
             st.toast("Question copied to clipboard!")
     
