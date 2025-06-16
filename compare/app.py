@@ -211,12 +211,13 @@ def upload_to_hf(comparison_data):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"compare/comparison_{timestamp}.json"
         
-        # Convert data to JSON string
+        # Convert data to JSON string and then to bytes
         json_str = json.dumps(comparison_data, indent=2)
+        json_bytes = json_str.encode('utf-8')
         
-        # Upload to HF
+        # Upload to HF using bytes
         hf_api.upload_file(
-            path_or_fileobj=io.StringIO(json_str),
+            path_or_fileobj=json_bytes,
             path_in_repo=filename,
             repo_id=HF_REPO_ID,
             repo_type="dataset"
