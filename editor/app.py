@@ -62,6 +62,7 @@ st.subheader("Add New Question")
 with st.form("add_question_form"):
     new_id = st.text_input("ID (unique)", value=f"Q{str(uuid.uuid4())[:8]}")
     new_question = st.text_area("Question Text", height=100)
+    new_answer = st.text_area("Answer Text", height=100)
     new_topics = st.text_input("Topics (comma separated)")
 
     submitted = st.form_submit_button("Add Question")
@@ -71,6 +72,7 @@ with st.form("add_question_form"):
             st.session_state.questions.append({
                 "id": new_id,
                 "question": new_question,
+                "answer": new_answer,
                 "topic": [t.strip() for t in new_topics.split(",") if t.strip()]
             })
             st.success("Question added.")
@@ -85,6 +87,7 @@ st.subheader("Edit Existing Questions")
 for idx, q in enumerate(st.session_state.questions):
     with st.expander(f"{q['id']}: {q['question'][:60]}"):
         edited_question = st.text_area("Edit Question", value=q["question"], key=f"question_{idx}")
+        edited_answer = st.text_area("Edit Answer", value=q.get("answer", ""), key=f"answer_{idx}")
         edited_topics = st.text_input(
             "Edit Topics (comma separated)",
             value=", ".join(q.get("topic", [])),
@@ -93,6 +96,7 @@ for idx, q in enumerate(st.session_state.questions):
 
         if st.button("Update", key=f"update_{idx}"):
             st.session_state.questions[idx]["question"] = edited_question
+            st.session_state.questions[idx]["answer"] = edited_answer
             st.session_state.questions[idx]["topic"] = [
                 t.strip() for t in edited_topics.split(",") if t.strip()
             ]
