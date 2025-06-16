@@ -131,10 +131,12 @@ if st.button("Clear Form"):
 # Main form
 st.header("Questions")
 
-def copy_to_clipboard(text):
+def copy_to_clipboard(text, key):
     html_code = f"""
     <div>
-        <button onclick="navigator.clipboard.writeText(`{text}`).then(() => {{ window.parent.postMessage({{type: 'streamlit:componentCommunication', data: 'copied'}}, '*'); }})" 
+        <button onclick="navigator.clipboard.writeText(`{text}`).then(() => {{ 
+            window.parent.postMessage({{type: 'streamlit:componentCommunication', data: 'copied', key: '{key}'}}, '*'); 
+        }})" 
                 style="padding: 0.25rem 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.2rem;">
             📋
         </button>
@@ -151,7 +153,10 @@ for q in questions:
     with col1:
         st.markdown(q['question'])
     with col2:
-        copy_to_clipboard(q['question'])
+        copy_to_clipboard(q['question'], f"copy_{qid}")
+        if st.session_state.get(f"copy_{qid}"):
+            st.toast("Question copied to clipboard!")
+            st.session_state[f"copy_{qid}"] = False
     
     response = st.text_area(
         "Your Response",
