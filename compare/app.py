@@ -292,6 +292,15 @@ if uploaded_file is not None or json_text:
                 # Parse the pasted JSON text
                 data_to_upload = json.loads(json_text)
             
+            # Validate against evaluation schema if available
+            if evaluation_schema:
+                is_valid, message = validate_evaluation_data(data_to_upload, evaluation_schema)
+                if not is_valid:
+                    st.error(f"Validation error: {message}")
+                    st.stop()
+            else:
+                st.warning("No evaluation schema found. Skipping validation.")
+            
             success, result = upload_to_hf(data_to_upload)
             if success:
                 st.success(f"Successfully uploaded evaluation to {result}")
