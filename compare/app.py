@@ -231,10 +231,11 @@ evaluation_schema = load_evaluation_schema()
 # Add upload to HF functionality
 def upload_to_hf(data):
     try:
-        # Create a unique filename with timestamp
+        # Create a unique filename with timestamp and session_id
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"compare/eval_{timestamp}.json"
+        session_id = data.get("session_id", "unknown_session")
+        filename = f"compare/eval_{session_id}_{timestamp}.json"
         
         # Convert data to JSON string and then to bytes
         json_str = json.dumps(data, indent=2)
@@ -275,6 +276,11 @@ if uploaded_file is not None or json_text:
             else:
                 # Parse the pasted JSON text
                 data_to_upload = json.loads(json_text)
+            
+            # Validate that session_id exists
+            if "session_id" not in data_to_upload:
+                st.error("Error: session_id is required in the evaluation data")
+                st.stop()
             
             success, result = upload_to_hf(data_to_upload)
             if success:
