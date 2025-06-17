@@ -233,6 +233,43 @@ def create_score_heatmap(df, score_type):
     
     return fig
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def create_score_histogram(df, score_type, model_names):
+    """Create a histogram of scores for a specific score type across models."""
+    fig = go.Figure()
+    
+    for model_name in model_names:
+        col_name = f"{model_name}_{score_type}"
+        scores = df[col_name].dropna()
+        
+        fig.add_trace(go.Histogram(
+            x=scores,
+            name=model_name,
+            opacity=0.7,
+            nbinsx=20,
+            histnorm='probability'
+        ))
+    
+    fig.update_layout(
+        title=f"{score_type.replace('_', ' ').title()} Score Distribution",
+        xaxis_title="Score",
+        yaxis_title="Probability",
+        barmode='overlay',
+        height=400,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(color='black'),
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        )
+    )
+    
+    return fig
+
 def main():
     if not check_auth():
         return
@@ -350,8 +387,13 @@ def main():
             # Create and display heatmaps for each score type
             st.header("Score Heatmaps")
             for score_type in common_score_types:
-                fig = create_score_heatmap(comparison_df, score_type)  # Use full comparison_df for heatmap
+                fig = create_score_heatmap(comparison_df, score_type)
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Add histogram for this score type
+                st.subheader(f"{score_type.replace('_', ' ').title()} Score Distribution")
+                hist_fig = create_score_histogram(comparison_df, score_type, evaluations.keys())
+                st.plotly_chart(hist_fig, use_container_width=True)
             
             # Display detailed comparison table
             st.header("Detailed Comparison")
