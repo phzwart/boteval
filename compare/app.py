@@ -228,6 +228,7 @@ json_text = st.text_area("Or paste JSON content here:", height=200)
 # Load evaluation schema
 evaluation_schema = load_evaluation_schema()
 
+uploaded_data = None
 if uploaded_file is not None:
     try:
         uploaded_data = json.load(uploaded_file)
@@ -237,76 +238,30 @@ if uploaded_file is not None:
             if not is_valid:
                 st.error(f"Validation error: {message}")
                 st.stop()
-        
-        responses.append({
-            "session_id": uploaded_data.get("session_id", "uploaded_file"),
-            "metadata": {
-                "model_name": uploaded_data.get("model_name", "Uploaded Model"),
-                "run_id": uploaded_data.get("run_id", "uploaded"),
-                "operator": uploaded_data.get("operator", "user")
-            },
-            "responses": uploaded_data.get("responses", {})
-        })
         st.success("Successfully loaded uploaded JSON file!")
     except Exception as e:
         st.error(f"Error loading uploaded file: {str(e)}")
 
-if json_text:
-    try:
-        pasted_data = json.loads(json_text)
-        # Validate against schema if available
-        if evaluation_schema:
-            is_valid, message = validate_evaluation_data(pasted_data, evaluation_schema)
-            if not is_valid:
-                st.error(f"Validation error: {message}")
-                st.stop()
-        
-        responses.append({
-            "session_id": pasted_data.get("session_id", "pasted_json"),
-            "metadata": {
-                "model_name": pasted_data.get("model_name", "Pasted Model"),
-                "run_id": pasted_data.get("run_id", "pasted"),
-                "operator": pasted_data.get("operator", "user")
-            },
-            "responses": pasted_data.get("responses", {})
-        })
-        st.success("Successfully loaded pasted JSON content!")
-    except Exception as e:
-        st.error(f"Error loading pasted JSON: {str(e)}")
-
-# Add upload to HF functionality
-def upload_to_hf(data):
-    try:
-        # Create a unique filename with timestamp
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"compare/eval_{timestamp}.json"
-        
-        # Convert data to JSON string and then to bytes
-        json_str = json.dumps(data, indent=2)
-        json_bytes = json_str.encode('utf-8')
-        
-        # Upload to HF using bytes
-        hf_api.upload_file(
-            path_or_fileobj=json_bytes,
-            path_in_repo=filename,
-            repo_id=HF_REPO_ID,
-            repo_type="dataset"
-        )
-        return True, filename
-    except Exception as e:
-        return False, str(e)
-
 # Add upload button for evaluation data
 if uploaded_file is not None or json_text:
     if st.button("Upload Evaluation to Hugging Face"):
-        # Get the appropriate data based on what was provided
-        data_to_upload = uploaded_data if uploaded_file is not None else pasted_data
-        success, result = upload_to_hf(data_to_upload)
-        if success:
-            st.success(f"Successfully uploaded evaluation to {result}")
-        else:
-            st.error(f"Failed to upload evaluation: {result}")
+        try:
+            # Get the appropriate data based on what was provided
+            if uploaded_file is not None:
+                data_to_upload = uploaded_data
+            else:
+                # Parse the pasted JSON text
+                data_to_upload = json.loads(json_text)
+            
+            success, result = upload_to_hf(data_to_upload)
+            if success:
+                st.success(f"Successfully uploaded evaluation to {result}")
+            else:
+                st.error(f"Failed to upload evaluation: {result}")
+        except json.JSONDecodeError:
+            st.error("Invalid JSON format in pasted text")
+        except Exception as e:
+            st.error(f"Error processing data: {str(e)}")
 
 st.divider()
 st.markdown("### 📋 Detailed Item Inspection (FYI Only)")
@@ -349,4 +304,27 @@ for q_data in comparison_data["items"]:
                 col_idx = idx % num_cols
                 with response_cols[col_idx]:
                     st.markdown(f"**Response {idx + 1}:**")
-                    st.markdown(response['response']) 
+                    st.markdown(response['response'])
+
+# Add upload to HF functionality
+def upload_to_hf(data):
+    try:
+        # Create a unique filename with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"compare/eval_{timestamp}.json"
+        
+        # Convert data to JSON string and then to bytes
+        json_str = json.dumps(data, indent=2)
+        json_bytes = json_str.encode('utf-8')
+        
+        # Upload to HF using bytes
+        hf_api.upload_file(
+            path_or_fileobj=json_bytes,
+            path_in_repo=filename,
+            repo_id=HF_REPO_ID,
+            repo_type="dataset"
+        )
+        return True, filename
+    except Exception as e:
+        return False, str(e) 
