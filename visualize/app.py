@@ -264,7 +264,11 @@ def create_score_histogram(_model_names, df, score_type):
             yanchor="top",
             y=0.99,
             xanchor="left",
-            x=0.01
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="black",
+            borderwidth=1,
+            font=dict(color="black", size=12)
         )
     )
     
