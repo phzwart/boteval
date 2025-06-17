@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
 from huggingface_hub import HfApi, hf_hub_download
+import hashlib
 
 st.set_page_config(layout="wide", page_title="Model Evaluation Comparison")
 
@@ -34,7 +35,7 @@ def check_auth():
     
     if not st.session_state.authenticated:
         try:
-            users = st.secrets["users"]
+            users = st.secrets["authorized_users"]
         except:
             # If secrets aren't configured, skip authentication
             st.warning("Authentication not configured - proceeding without login")
