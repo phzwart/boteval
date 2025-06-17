@@ -11,9 +11,16 @@ st.set_page_config(layout="wide", page_title="Model Evaluation Comparison")
 def get_hf_token():
     """Get HF token from Streamlit secrets"""
     try:
-        return st.secrets["HF_TOKEN"]
+        return st.secrets["hf"]["token"]
     except:
-        st.error("Hugging Face token not found in Streamlit secrets! Please add HF_TOKEN to your secrets.")
+        st.error("Hugging Face token not found in Streamlit secrets! Please add token under [hf] section.")
+        return None
+
+def get_repo_id():
+    """Get repo_id from Streamlit secrets or user input"""
+    try:
+        return st.secrets["hf"]["repo_id"]
+    except:
         return None
 
 def check_auth():
@@ -234,8 +241,9 @@ def main():
         st.session_state.authenticated = False
         st.experimental_rerun()
     
-    # Get repository ID
-    repo_id = st.sidebar.text_input("Hugging Face Repository ID", "phzwart/boteval-phenixbb")
+    # Get repository ID from secrets or user input
+    default_repo = get_repo_id() or "phzwart/boteval-phenixbb"
+    repo_id = st.sidebar.text_input("Hugging Face Repository ID", default_repo)
     
     # Load evaluation data and schemas
     evaluations, schemas = load_evaluation_data(repo_id)
