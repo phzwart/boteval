@@ -233,7 +233,6 @@ def create_score_heatmap(df, score_type):
     
     return fig
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
 def create_score_histogram(_model_names, _excluded_questions, df, score_type):
     """Create a histogram of scores for a specific score type across models."""
     # Filter the dataframe based on excluded questions
