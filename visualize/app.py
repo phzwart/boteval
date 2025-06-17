@@ -6,19 +6,8 @@ from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
 import hashlib
-import yaml
 
 st.set_page_config(layout="wide", page_title="Model Evaluation Comparison")
-
-def load_config():
-    """Load configuration from config.yaml"""
-    config_path = Path("config.yaml")
-    if not config_path.exists():
-        st.error("config.yaml not found!")
-        return None
-    
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
 
 def check_auth():
     """Check if user is authenticated"""
@@ -26,8 +15,10 @@ def check_auth():
         st.session_state.authenticated = False
     
     if not st.session_state.authenticated:
-        config = load_config()
-        if not config:
+        try:
+            users = st.secrets["users"]
+        except:
+            st.error("Authentication configuration not found in secrets!")
             return False
             
         st.title("Login")
@@ -35,8 +26,8 @@ def check_auth():
         password = st.text_input("Password", type="password")
         
         if st.button("Login"):
-            if username in config['users']:
-                stored_password = config['users'][username]
+            if username in users:
+                stored_password = users[username]
                 hashed_input = hashlib.sha256(password.encode()).hexdigest()
                 
                 if hashed_input == stored_password:
@@ -223,4 +214,4 @@ def main():
     st.dataframe(comparison_df)
 
 if __name__ == "__main__":
-    main() 
+    main()
