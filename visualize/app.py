@@ -4,13 +4,24 @@ import os
 import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
-import plotly.express as px
-import hashlib
+from huggingface_hub import HfApi, hf_hub_download
 
 st.set_page_config(layout="wide", page_title="Model Evaluation Comparison")
 
+def get_hf_token():
+    """Get HF token from Streamlit secrets"""
+    try:
+        return st.secrets["HF_TOKEN"]
+    except:
+        st.error("Hugging Face token not found in Streamlit secrets! Please add HF_TOKEN to your secrets.")
+        return None
+
 def check_auth():
     """Check if user is authenticated"""
+    # Skip authentication if running locally or if secrets aren't configured
+    if os.environ.get('STREAMLIT_SERVER_RUNNING_LOCALLY', 'false').lower() == 'true':
+        return True
+        
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     
@@ -18,8 +29,9 @@ def check_auth():
         try:
             users = st.secrets["users"]
         except:
-            st.error("Authentication configuration not found in secrets!")
-            return False
+            # If secrets aren't configured, skip authentication
+            st.warning("Authentication not configured - proceeding without login")
+            return True
             
         st.title("Login")
         username = st.text_input("Username")
@@ -41,6 +53,7 @@ def check_auth():
     
     return True
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def extract_schema(evaluation_data):
     """Extract the schema from evaluation data including all possible score types."""
     schema = {
@@ -69,28 +82,52 @@ def extract_schema(evaluation_data):
     
     return schema
 
-def load_evaluation_data(directory):
-    """Load all evaluation JSON files from the compare directory."""
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_evaluation_data(repo_id, directory="compare"):
+    """Load all evaluation JSON files from the Hugging Face repo."""
     evaluations = {}
     schemas = {}
-    compare_dir = Path(directory)
     
-    if not compare_dir.exists():
-        st.error(f"Directory {directory} does not exist!")
+    # Get HF token
+    token = get_hf_token()
+    if not token:
+        st.error("Hugging Face token not found! Please set HF_TOKEN in environment or secrets.")
         return {}, {}
     
-    for file in compare_dir.glob("*.json"):
-        try:
-            with open(file, 'r') as f:
-                data = json.load(f)
-                model_name = file.stem
-                evaluations[model_name] = data
-                schemas[model_name] = extract_schema(data)
-        except Exception as e:
-            st.warning(f"Error loading {file}: {str(e)}")
+    # Initialize HF API
+    api = HfApi(token=token)
+    
+    try:
+        # List files in the directory
+        files = api.list_repo_files(repo_id, repo_type="dataset")
+        json_files = [f for f in files if f.startswith(f"{directory}/") and f.endswith(".json")]
+        
+        for file_path in json_files:
+            try:
+                # Download file
+                local_path = hf_hub_download(
+                    repo_id=repo_id,
+                    repo_type="dataset",
+                    filename=file_path,
+                    token=token
+                )
+                
+                # Load data
+                with open(local_path, 'r') as f:
+                    data = json.load(f)
+                    model_name = Path(file_path).stem
+                    evaluations[model_name] = data
+                    schemas[model_name] = extract_schema(data)
+            except Exception as e:
+                st.warning(f"Error loading {file_path}: {str(e)}")
+    
+    except Exception as e:
+        st.error(f"Error accessing Hugging Face repository: {str(e)}")
+        return {}, {}
     
     return evaluations, schemas
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def create_comparison_table(evaluations, score_types):
     """Create a DataFrame comparing scores across models."""
     comparison_data = []
@@ -106,6 +143,10 @@ def create_comparison_table(evaluations, score_types):
         
         # Get scores for each model
         for model_name, eval_data in evaluations.items():
+            # Get evaluator from metadata
+            evaluator = eval_data.get('evaluation_metadata', {}).get('evaluator', 'unknown')
+            row_data[f"{model_name}_evaluator"] = evaluator
+            
             # Find the question in this model's evaluations
             question_data = next(
                 (q for q in eval_data.get('evaluations', []) 
@@ -126,6 +167,7 @@ def create_comparison_table(evaluations, score_types):
     
     return pd.DataFrame(comparison_data)
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def create_score_heatmap(df, score_type):
     """Create a heatmap of scores for a specific score type."""
     # Extract columns for the specific score type
@@ -142,14 +184,41 @@ def create_score_heatmap(df, score_type):
         colorscale='RdYlGn',
         zmin=1,
         zmax=10,
-        colorbar=dict(title=f"{score_type.replace('_', ' ').title()} Score")
+        colorbar=dict(title=f"{score_type.replace('_', ' ').title()} Score"),
+        xgap=1,  # Add gap between x-axis elements
+        ygap=1,  # Add gap between y-axis elements
+        text=heatmap_data,  # Add text values
+        texttemplate="%{text:.1f}",  # Format text to 1 decimal place
+        textfont={"color": "black"},  # Set text color to black
     ))
     
+    # Add black grid lines
+    fig.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='black',
+        tickfont=dict(color='black'),  # Set axis text color to black
+        title_font=dict(color='black')  # Set axis title color to black
+    )
+    fig.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='black',
+        tickfont=dict(color='black'),  # Set axis text color to black
+        title_font=dict(color='black')  # Set axis title color to black
+    )
+    
     fig.update_layout(
-        title=f"{score_type.replace('_', ' ').title()} Comparison",
+        title=dict(
+            text=f"{score_type.replace('_', ' ').title()} Comparison",
+            font=dict(color='black')  # Set title color to black
+        ),
         xaxis_title="Model",
         yaxis_title="Question ID",
-        height=800
+        height=800,
+        plot_bgcolor='white',  # Set background to white
+        paper_bgcolor='white',  # Set paper background to white
+        font=dict(color='black')  # Set default font color to black
     )
     
     return fig
@@ -165,8 +234,11 @@ def main():
         st.session_state.authenticated = False
         st.experimental_rerun()
     
+    # Get repository ID
+    repo_id = st.sidebar.text_input("Hugging Face Repository ID", "phzwart/boteval-phenixbb")
+    
     # Load evaluation data and schemas
-    evaluations, schemas = load_evaluation_data("compare")
+    evaluations, schemas = load_evaluation_data(repo_id)
     
     if not evaluations:
         st.error("No evaluation data found!")
@@ -189,24 +261,69 @@ def main():
     # Create comparison table
     comparison_df = create_comparison_table(evaluations, common_score_types)
     
+    # Add question exclusion in sidebar
+    st.sidebar.header("Question Filtering")
+    all_questions = comparison_df['question_id'].tolist()
+    excluded_questions = st.sidebar.multiselect(
+        "Exclude questions from summary statistics",
+        options=all_questions,
+        default=[]
+    )
+    
+    # Filter comparison dataframe for summary statistics
+    summary_df = comparison_df[~comparison_df['question_id'].isin(excluded_questions)]
+    
     # Display summary statistics
     st.header("Summary Statistics")
+    if excluded_questions:
+        st.info(f"Excluded {len(excluded_questions)} questions from summary statistics")
     
-    # Calculate average scores for each model
+    # Calculate statistics for each model
     summary_data = []
     for model_name in evaluations.keys():
-        model_data = {'Model': model_name}
+        # Get evaluator from the first row (it's the same for all rows)
+        evaluator = comparison_df[f"{model_name}_evaluator"].iloc[0]
+        model_data = {
+            'Model': model_name,
+            'Evaluator': evaluator
+        }
         for score_type in common_score_types:
-            model_data[score_type.replace('_', ' ').title()] = comparison_df[f"{model_name}_{score_type}"].mean()
+            col_name = f"{model_name}_{score_type}"
+            scores = summary_df[col_name]
+            # Format the statistics as a string
+            stats_str = f"Q25: {scores.quantile(0.25):.2f} | Median: {scores.median():.2f} | Q75: {scores.quantile(0.75):.2f}"
+            model_data[score_type.replace('_', ' ').title()] = stats_str
         summary_data.append(model_data)
     
     summary_df = pd.DataFrame(summary_data)
-    st.dataframe(summary_df.style.format("{:.2f}"))
+    st.dataframe(summary_df)
+    
+    # Add download buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        # Download summary statistics
+        summary_csv = summary_df.to_csv(index=False)
+        st.download_button(
+            label="Download Summary Statistics",
+            data=summary_csv,
+            file_name="summary_statistics.csv",
+            mime="text/csv"
+        )
+    
+    with col2:
+        # Download full comparison table
+        full_csv = comparison_df.to_csv(index=False)
+        st.download_button(
+            label="Download Full Comparison Table",
+            data=full_csv,
+            file_name="full_comparison.csv",
+            mime="text/csv"
+        )
     
     # Create and display heatmaps for each score type
     st.header("Score Heatmaps")
     for score_type in common_score_types:
-        fig = create_score_heatmap(comparison_df, score_type)
+        fig = create_score_heatmap(comparison_df, score_type)  # Use full comparison_df for heatmap
         st.plotly_chart(fig, use_container_width=True)
     
     # Display detailed comparison table
