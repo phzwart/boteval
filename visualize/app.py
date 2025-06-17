@@ -234,13 +234,16 @@ def create_score_heatmap(df, score_type):
     return fig
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def create_score_histogram(_model_names, df, score_type):
+def create_score_histogram(_model_names, _excluded_questions, df, score_type):
     """Create a histogram of scores for a specific score type across models."""
+    # Filter the dataframe based on excluded questions
+    filtered_df = df[~df['question_id'].isin(_excluded_questions)]
+    
     fig = go.Figure()
     
     for model_name in _model_names:
         col_name = f"{model_name}_{score_type}"
-        scores = df[col_name].dropna()
+        scores = filtered_df[col_name].dropna()
         
         fig.add_trace(go.Histogram(
             x=scores,
@@ -412,7 +415,12 @@ def main():
                 
                 # Add histogram for this score type using filtered data
                 st.subheader(f"{score_type.replace('_', ' ').title()} Score Distribution")
-                hist_fig = create_score_histogram(tuple(evaluations.keys()), filtered_df, score_type)
+                hist_fig = create_score_histogram(
+                    tuple(evaluations.keys()),
+                    tuple(excluded_questions),  # Convert to tuple for caching
+                    comparison_df,
+                    score_type
+                )
                 st.plotly_chart(hist_fig, use_container_width=True)
             
             # Display detailed comparison table
