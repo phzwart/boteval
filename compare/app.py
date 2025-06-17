@@ -179,6 +179,11 @@ selected_session_keys = st.multiselect(
 selected_sessions = [session_options[key] for key in selected_session_keys]
 responses = load_responses_from_sessions(selected_sessions)
 
+# Store the selected session IDs in session state
+if "selected_session_ids" not in st.session_state:
+    st.session_state.selected_session_ids = []
+st.session_state.selected_session_ids = [session["session_id"] for session in selected_sessions]
+
 # Create comparison data structure
 comparison_data = {
     "session_ids": [session["session_id"] for session in selected_sessions],
@@ -234,8 +239,18 @@ def upload_to_hf(data):
         # Create a unique filename with timestamp and session_id
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        session_id = data.get("session_id", "unknown_session")
+        
+        # Get the session_id from the selected session
+        if not st.session_state.selected_session_ids:
+            st.error("Please select a session first")
+            st.stop()
+        session_id = st.session_state.selected_session_ids[0]  # Use the first selected session
+        
         filename = f"compare/eval_{session_id}_{timestamp}.json"
+        
+        # Add session_id to the data if it's not already there
+        if "session_id" not in data:
+            data["session_id"] = session_id
         
         # Convert data to JSON string and then to bytes
         json_str = json.dumps(data, indent=2)
@@ -276,11 +291,6 @@ if uploaded_file is not None or json_text:
             else:
                 # Parse the pasted JSON text
                 data_to_upload = json.loads(json_text)
-            
-            # Validate that session_id exists
-            if "session_id" not in data_to_upload:
-                st.error("Error: session_id is required in the evaluation data")
-                st.stop()
             
             success, result = upload_to_hf(data_to_upload)
             if success:
