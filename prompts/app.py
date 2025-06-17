@@ -263,4 +263,8 @@ Please evaluate the responses according to both the custom instructions and the 
             # Add copy button
             if st.button("Copy to Clipboard"):
                 st.code(system_prompt)
-                st.success("System prompt copied to clipboard!") 
+                st.success("System prompt copied to clipboard!")
+
+if "selected_session_ids" not in st.session_state:
+    st.session_state.selected_session_ids = []
+st.session_state.selected_session_ids = [session["session_id"] for session in selected_sessions] 
