@@ -50,7 +50,7 @@ def check_auth():
                 stored_password = users[username]
                 if password == stored_password:
                     st.session_state.authenticated = True
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Invalid password")
             else:
@@ -238,7 +238,7 @@ def main():
     # Add logout button in sidebar
     if st.sidebar.button("Logout"):
         st.session_state.authenticated = False
-        st.experimental_rerun()
+        st.rerun()
     
     # Get repository ID from secrets or user input
     default_repo = get_repo_id() or "phzwart/boteval-phenixbb"
