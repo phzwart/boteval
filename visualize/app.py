@@ -251,9 +251,24 @@ def create_score_histogram(_model_names, df, score_type):
         ))
     
     fig.update_layout(
-        title=f"{score_type.replace('_', ' ').title()} Score Distribution",
-        xaxis_title="Score",
-        yaxis_title="Probability",
+        title=dict(
+            text=f"{score_type.replace('_', ' ').title()} Score Distribution",
+            font=dict(color='black', size=16)
+        ),
+        xaxis=dict(
+            title=dict(
+                text="Score",
+                font=dict(color='black', size=14)
+            ),
+            tickfont=dict(color='black', size=12)
+        ),
+        yaxis=dict(
+            title=dict(
+                text="Probability",
+                font=dict(color='black', size=14)
+            ),
+            tickfont=dict(color='black', size=12)
+        ),
         barmode='overlay',
         height=400,
         plot_bgcolor='white',
