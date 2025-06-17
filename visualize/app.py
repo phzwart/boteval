@@ -353,8 +353,8 @@ def main():
                 default=[]
             )
             
-            # Filter comparison dataframe for summary statistics
-            summary_df = comparison_df[~comparison_df['question_id'].isin(excluded_questions)]
+            # Filter comparison dataframe for summary statistics and visualizations
+            filtered_df = comparison_df[~comparison_df['question_id'].isin(excluded_questions)]
             
             # Display summary statistics
             st.header("Summary Statistics")
@@ -372,7 +372,7 @@ def main():
                 }
                 for score_type in common_score_types:
                     col_name = f"{model_name}_{score_type}"
-                    scores = summary_df[col_name]
+                    scores = filtered_df[col_name]  # Use filtered data
                     # Format the statistics as a string
                     stats_str = f"Q25: {scores.quantile(0.25):.2f} | Median: {scores.median():.2f} | Q75: {scores.quantile(0.75):.2f}"
                     model_data[score_type.replace('_', ' ').title()] = stats_str
@@ -406,12 +406,13 @@ def main():
             # Create and display heatmaps for each score type
             st.header("Score Heatmaps")
             for score_type in common_score_types:
+                # Use full comparison_df for heatmap to show all questions
                 fig = create_score_heatmap(comparison_df, score_type)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Add histogram for this score type
+                # Add histogram for this score type using filtered data
                 st.subheader(f"{score_type.replace('_', ' ').title()} Score Distribution")
-                hist_fig = create_score_histogram(tuple(evaluations.keys()), comparison_df, score_type)
+                hist_fig = create_score_histogram(tuple(evaluations.keys()), filtered_df, score_type)
                 st.plotly_chart(hist_fig, use_container_width=True)
             
             # Display detailed comparison table
