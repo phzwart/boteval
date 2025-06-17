@@ -89,15 +89,15 @@ def extract_schema(evaluation_data):
     return schema
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_evaluation_data(repo_id, directory="compare"):
-    """Load all evaluation JSON files from the Hugging Face repo."""
+def load_evaluation_data(repo_id, directory="compare", selected_files=None):
+    """Load selected evaluation JSON files from the Hugging Face repo."""
     evaluations = {}
     schemas = {}
     
     # Get HF token
     token = get_hf_token()
     if not token:
-        st.error("Hugging Face token not found! Please set HF_TOKEN in environment or secrets.")
+        st.error("Hugging Face token not found in Streamlit secrets! Please add token under [hf] section.")
         return {}, {}
     
     # Initialize HF API
@@ -107,6 +107,10 @@ def load_evaluation_data(repo_id, directory="compare"):
         # List files in the directory
         files = api.list_repo_files(repo_id, repo_type="dataset")
         json_files = [f for f in files if f.startswith(f"{directory}/") and f.endswith(".json")]
+        
+        # Filter files if specific ones are selected
+        if selected_files:
+            json_files = [f for f in json_files if Path(f).stem in selected_files]
         
         for file_path in json_files:
             try:
@@ -244,98 +248,116 @@ def main():
     default_repo = get_repo_id() or "phzwart/boteval-phenixbb"
     repo_id = st.sidebar.text_input("Hugging Face Repository ID", default_repo)
     
-    # Load evaluation data and schemas
-    evaluations, schemas = load_evaluation_data(repo_id)
-    
-    if not evaluations:
-        st.error("No evaluation data found!")
-        return
-    
-    # Display schema information
-    st.sidebar.header("Schema Information")
-    for model_name, schema in schemas.items():
-        with st.sidebar.expander(f"{model_name} Schema"):
-            st.write("Score Types:", list(schema['score_types']))
-            st.write("Metadata Fields:", list(schema['metadata_fields']))
-            st.write("Evaluation Fields:", list(schema['evaluation_fields']))
-    
-    # Get common score types across all models
-    common_score_types = set.intersection(*[schema['score_types'] for schema in schemas.values()])
-    if not common_score_types:
-        st.error("No common score types found across models!")
-        return
-    
-    # Create comparison table
-    comparison_df = create_comparison_table(evaluations, common_score_types)
-    
-    # Add question exclusion in sidebar
-    st.sidebar.header("Question Filtering")
-    all_questions = comparison_df['question_id'].tolist()
-    excluded_questions = st.sidebar.multiselect(
-        "Exclude questions from summary statistics",
-        options=all_questions,
-        default=[]
-    )
-    
-    # Filter comparison dataframe for summary statistics
-    summary_df = comparison_df[~comparison_df['question_id'].isin(excluded_questions)]
-    
-    # Display summary statistics
-    st.header("Summary Statistics")
-    if excluded_questions:
-        st.info(f"Excluded {len(excluded_questions)} questions from summary statistics")
-    
-    # Calculate statistics for each model
-    summary_data = []
-    for model_name in evaluations.keys():
-        # Get evaluator from the first row (it's the same for all rows)
-        evaluator = comparison_df[f"{model_name}_evaluator"].iloc[0]
-        model_data = {
-            'Model': model_name,
-            'Evaluator': evaluator
-        }
-        for score_type in common_score_types:
-            col_name = f"{model_name}_{score_type}"
-            scores = summary_df[col_name]
-            # Format the statistics as a string
-            stats_str = f"Q25: {scores.quantile(0.25):.2f} | Median: {scores.median():.2f} | Q75: {scores.quantile(0.75):.2f}"
-            model_data[score_type.replace('_', ' ').title()] = stats_str
-        summary_data.append(model_data)
-    
-    summary_df = pd.DataFrame(summary_data)
-    st.dataframe(summary_df)
-    
-    # Add download buttons
-    col1, col2 = st.columns(2)
-    with col1:
-        # Download summary statistics
-        summary_csv = summary_df.to_csv(index=False)
-        st.download_button(
-            label="Download Summary Statistics",
-            data=summary_csv,
-            file_name="summary_statistics.csv",
-            mime="text/csv"
-        )
-    
-    with col2:
-        # Download full comparison table
-        full_csv = comparison_df.to_csv(index=False)
-        st.download_button(
-            label="Download Full Comparison Table",
-            data=full_csv,
-            file_name="full_comparison.csv",
-            mime="text/csv"
-        )
-    
-    # Create and display heatmaps for each score type
-    st.header("Score Heatmaps")
-    for score_type in common_score_types:
-        fig = create_score_heatmap(comparison_df, score_type)  # Use full comparison_df for heatmap
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Display detailed comparison table
-    st.header("Detailed Comparison")
-    st.dataframe(comparison_df)
+    # Initialize HF API to get available files
+    token = get_hf_token()
+    if token:
+        api = HfApi(token=token)
+        try:
+            files = api.list_repo_files(repo_id, repo_type="dataset")
+            json_files = [Path(f).stem for f in files if f.startswith("compare/") and f.endswith(".json")]
+            
+            # Add file selector in sidebar
+            st.sidebar.header("Select Evaluations")
+            selected_files = st.sidebar.multiselect(
+                "Choose evaluation files to compare",
+                options=json_files,
+                default=json_files  # Default to all files
+            )
+            
+            # Load evaluation data and schemas
+            evaluations, schemas = load_evaluation_data(repo_id, selected_files=selected_files)
+            
+            if not evaluations:
+                st.error("No evaluation data found!")
+                return
+                
+            # Display schema information
+            st.sidebar.header("Schema Information")
+            for model_name, schema in schemas.items():
+                with st.sidebar.expander(f"{model_name} Schema"):
+                    st.write("Score Types:", list(schema['score_types']))
+                    st.write("Metadata Fields:", list(schema['metadata_fields']))
+                    st.write("Evaluation Fields:", list(schema['evaluation_fields']))
+            
+            # Get common score types across all models
+            common_score_types = set.intersection(*[schema['score_types'] for schema in schemas.values()])
+            if not common_score_types:
+                st.error("No common score types found across models!")
+                return
+            
+            # Create comparison table
+            comparison_df = create_comparison_table(evaluations, common_score_types)
+            
+            # Add question exclusion in sidebar
+            st.sidebar.header("Question Filtering")
+            all_questions = comparison_df['question_id'].tolist()
+            excluded_questions = st.sidebar.multiselect(
+                "Exclude questions from summary statistics",
+                options=all_questions,
+                default=[]
+            )
+            
+            # Filter comparison dataframe for summary statistics
+            summary_df = comparison_df[~comparison_df['question_id'].isin(excluded_questions)]
+            
+            # Display summary statistics
+            st.header("Summary Statistics")
+            if excluded_questions:
+                st.info(f"Excluded {len(excluded_questions)} questions from summary statistics")
+            
+            # Calculate statistics for each model
+            summary_data = []
+            for model_name in evaluations.keys():
+                # Get evaluator from the first row (it's the same for all rows)
+                evaluator = comparison_df[f"{model_name}_evaluator"].iloc[0]
+                model_data = {
+                    'Model': model_name,
+                    'Evaluator': evaluator
+                }
+                for score_type in common_score_types:
+                    col_name = f"{model_name}_{score_type}"
+                    scores = summary_df[col_name]
+                    # Format the statistics as a string
+                    stats_str = f"Q25: {scores.quantile(0.25):.2f} | Median: {scores.median():.2f} | Q75: {scores.quantile(0.75):.2f}"
+                    model_data[score_type.replace('_', ' ').title()] = stats_str
+                summary_data.append(model_data)
+            
+            summary_df = pd.DataFrame(summary_data)
+            st.dataframe(summary_df)
+            
+            # Add download buttons
+            col1, col2 = st.columns(2)
+            with col1:
+                # Download summary statistics
+                summary_csv = summary_df.to_csv(index=False)
+                st.download_button(
+                    label="Download Summary Statistics",
+                    data=summary_csv,
+                    file_name="summary_statistics.csv",
+                    mime="text/csv"
+                )
+            
+            with col2:
+                # Download full comparison table
+                full_csv = comparison_df.to_csv(index=False)
+                st.download_button(
+                    label="Download Full Comparison Table",
+                    data=full_csv,
+                    file_name="full_comparison.csv",
+                    mime="text/csv"
+                )
+            
+            # Create and display heatmaps for each score type
+            st.header("Score Heatmaps")
+            for score_type in common_score_types:
+                fig = create_score_heatmap(comparison_df, score_type)  # Use full comparison_df for heatmap
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Display detailed comparison table
+            st.header("Detailed Comparison")
+            st.dataframe(comparison_df)
+        except Exception as e:
+            st.error(f"Error accessing Hugging Face repository: {str(e)}")
 
 if __name__ == "__main__":
     main()
