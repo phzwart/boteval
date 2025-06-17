@@ -275,15 +275,15 @@ if json_text:
         st.error(f"Error loading pasted JSON: {str(e)}")
 
 # Add upload to HF functionality
-def upload_to_hf(comparison_data):
+def upload_to_hf(data):
     try:
         # Create a unique filename with timestamp
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"compare/comparison_{timestamp}.json"
+        filename = f"compare/eval_{timestamp}.json"
         
         # Convert data to JSON string and then to bytes
-        json_str = json.dumps(comparison_data, indent=2)
+        json_str = json.dumps(data, indent=2)
         json_bytes = json_str.encode('utf-8')
         
         # Upload to HF using bytes
@@ -297,13 +297,16 @@ def upload_to_hf(comparison_data):
     except Exception as e:
         return False, str(e)
 
-# Add upload button
-if st.button("Upload Comparison to Hugging Face"):
-    success, result = upload_to_hf(comparison_data)
-    if success:
-        st.success(f"Successfully uploaded comparison to {result}")
-    else:
-        st.error(f"Failed to upload comparison: {result}")
+# Add upload button for evaluation data
+if uploaded_file is not None or json_text:
+    if st.button("Upload Evaluation to Hugging Face"):
+        # Get the appropriate data based on what was provided
+        data_to_upload = uploaded_data if uploaded_file is not None else pasted_data
+        success, result = upload_to_hf(data_to_upload)
+        if success:
+            st.success(f"Successfully uploaded evaluation to {result}")
+        else:
+            st.error(f"Failed to upload evaluation: {result}")
 
 st.divider()
 st.markdown("### 📋 Detailed Item Inspection (FYI Only)")
