@@ -5,8 +5,50 @@ import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
+import hashlib
+import yaml
 
 st.set_page_config(layout="wide", page_title="Model Evaluation Comparison")
+
+def load_config():
+    """Load configuration from config.yaml"""
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        st.error("config.yaml not found!")
+        return None
+    
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+def check_auth():
+    """Check if user is authenticated"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if not st.session_state.authenticated:
+        config = load_config()
+        if not config:
+            return False
+            
+        st.title("Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Login"):
+            if username in config['users']:
+                stored_password = config['users'][username]
+                hashed_input = hashlib.sha256(password.encode()).hexdigest()
+                
+                if hashed_input == stored_password:
+                    st.session_state.authenticated = True
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid password")
+            else:
+                st.error("Invalid username")
+        return False
+    
+    return True
 
 def extract_schema(evaluation_data):
     """Extract the schema from evaluation data including all possible score types."""
@@ -122,7 +164,15 @@ def create_score_heatmap(df, score_type):
     return fig
 
 def main():
+    if not check_auth():
+        return
+        
     st.title("Model Evaluation Comparison")
+    
+    # Add logout button in sidebar
+    if st.sidebar.button("Logout"):
+        st.session_state.authenticated = False
+        st.experimental_rerun()
     
     # Load evaluation data and schemas
     evaluations, schemas = load_evaluation_data("compare")
