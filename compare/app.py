@@ -228,6 +228,29 @@ json_text = st.text_area("Or paste JSON content here:", height=200)
 # Load evaluation schema
 evaluation_schema = load_evaluation_schema()
 
+# Add upload to HF functionality
+def upload_to_hf(data):
+    try:
+        # Create a unique filename with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"compare/eval_{timestamp}.json"
+        
+        # Convert data to JSON string and then to bytes
+        json_str = json.dumps(data, indent=2)
+        json_bytes = json_str.encode('utf-8')
+        
+        # Upload to HF using bytes
+        hf_api.upload_file(
+            path_or_fileobj=json_bytes,
+            path_in_repo=filename,
+            repo_id=HF_REPO_ID,
+            repo_type="dataset"
+        )
+        return True, filename
+    except Exception as e:
+        return False, str(e)
+
 uploaded_data = None
 if uploaded_file is not None:
     try:
@@ -304,27 +327,4 @@ for q_data in comparison_data["items"]:
                 col_idx = idx % num_cols
                 with response_cols[col_idx]:
                     st.markdown(f"**Response {idx + 1}:**")
-                    st.markdown(response['response'])
-
-# Add upload to HF functionality
-def upload_to_hf(data):
-    try:
-        # Create a unique filename with timestamp
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"compare/eval_{timestamp}.json"
-        
-        # Convert data to JSON string and then to bytes
-        json_str = json.dumps(data, indent=2)
-        json_bytes = json_str.encode('utf-8')
-        
-        # Upload to HF using bytes
-        hf_api.upload_file(
-            path_or_fileobj=json_bytes,
-            path_in_repo=filename,
-            repo_id=HF_REPO_ID,
-            repo_type="dataset"
-        )
-        return True, filename
-    except Exception as e:
-        return False, str(e) 
+                    st.markdown(response['response']) 
