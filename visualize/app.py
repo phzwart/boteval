@@ -48,9 +48,7 @@ def check_auth():
         if st.button("Login"):
             if username in users:
                 stored_password = users[username]
-                hashed_input = hashlib.sha256(password.encode()).hexdigest()
-                
-                if hashed_input == stored_password:
+                if password == stored_password:
                     st.session_state.authenticated = True
                     st.experimental_rerun()
                 else:
